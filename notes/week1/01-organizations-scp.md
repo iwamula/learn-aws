@@ -8,7 +8,7 @@
   - 継承: ルート → OU → アカウントの各階層すべてで許可されていないと通らない。
   - 戦略: 「拒否リスト方式」（FullAWSAccess を残して Deny を追加）が扱いやすい。「許可リスト方式」は FullAWSAccess を外して必要なものだけ Allow。
 - 典型的な SCP: 特定リージョン以外を Deny（`aws:RequestedRegion`）、CloudTrail 停止の Deny、組織離脱の Deny、暗号化なしの作成の Deny。
-- **Control Tower**: Organizations 上にランディングゾーンを自動構築。ガードレール（予防=SCP、発見=Config ルール）、Account Factory でアカウント払い出し。
+- **Control Tower**: Organizations 上にランディングゾーンを自動構築。ガードレール（現在の用語は「コントロール」）は3種類: 予防=SCP/RCP/宣言型ポリシー、発見=Config ルール、**プロアクティブ=CloudFormation フック**（プロビジョニング前に非準拠リソースを拒否。CloudFormation 経由のリソースのみ対象）。Account Factory でアカウント払い出し。
 - **IAM Identity Center（旧 SSO）**: 複数アカウントへのシングルサインオンと権限セット。外部 IdP（Entra ID/Okta）と連携可能。
 - **RAM**: Transit Gateway、サブネット、Route 53 Resolver ルールなどを組織内で共有。
 - **CloudTrail 組織証跡**: 全アカウントのログを 1 つの S3 に集約。

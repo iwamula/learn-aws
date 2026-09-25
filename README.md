@@ -22,7 +22,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 
 ## 進め方（Q&A運用）
 1. `notes/weekN/` の要点ノートを読む
-2. 気になった仕様や、自分の理解が合っているか不安な点を、トピック別ファイル（`iam.md` など）に `Qn 質問（自分の理解も書く）` として追記する
+2. 気になった仕様や、自分の理解が合っているか不安な点を、トピック別ファイル（`qa/iam.md` など）に `Qn 質問（自分の理解も書く）` として追記する
 3. AIに「事実確認して」と依頼し、`> **AI回答（日付）**` の引用ブロックで根拠つきの回答・訂正を書き込んでもらう
 4. 間違っていた理解は `qa/mistakes.md` に記録し、週末に見直す
 
@@ -31,8 +31,11 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 - [02 VPC 接続（Peering / TGW / PrivateLink / DX）](notes/week1/02-vpc-connectivity.md)
 - [03 ハイブリッド DNS と Route 53](notes/week1/03-hybrid-dns-route53.md)
 - [04 IAM ポリシー評価とクロスアカウント](notes/week1/04-iam-policy-evaluation.md)
+- [05 Control Tower と IAM Identity Center](notes/week1/05-control-tower-identity-center.md)
+- [06 Direct Connect の冗長構成](notes/week1/06-direct-connect-resiliency.md)
+- [07 セキュリティサービスの組織横断集約](notes/week1/07-org-wide-security-services.md)
 
 ## 構成
 - `notes/` ドメイン別・週別の要点ノート（Q&A付き）
-- `qa/` 間違いノート・自作問題
-- `iam.md` 自作のIAM Q&A
+- `qa/` 間違いノート・自作Q&A（`qa/iam.md` など）
+- `other/` 事実確認ログ（`other/fact-check-log.md`）

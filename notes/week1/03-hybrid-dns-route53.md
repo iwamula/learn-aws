@@ -5,7 +5,7 @@
 - **ヘルスチェック**: エンドポイント、他のヘルスチェックの集計、CloudWatch アラーム。**プライベートなリソースは直接チェックできない**ので CloudWatch アラームを使う
 - **Alias レコード**: ゾーン頂点（example.com）に使える。CloudFront / ELB / S3 静的サイト等を指す。クエリ課金なし。CNAME は頂点に置けない
 
-## ハイブリッド DNS: Route 53 Resolver
+## ハイブリッド DNS: Route 53 Resolver（現行ドキュメントでは「Route 53 VPC Resolver」に改称）
 - **Inbound Endpoint**: オンプレ → AWS（オンプレの DNS が VPC の名前を引く）
 - **Outbound Endpoint + 転送ルール**: AWS → オンプレ（VPC から `corp.example.com` をオンプレDNSへ転送）
 - ルールは **RAM で組織内に共有**でき、複数アカウントのVPCに関連付けられる
