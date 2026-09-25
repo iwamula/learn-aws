@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week4-18: S3 詳細 / Storage Gateway / FSx / EFS（ストレージ）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">S3 ストレージクラス（アーカイブ系）</a><a class="h2" href="#s2">S3 レプリケーション（補足。基本は Week2 ノート 09）</a><a class="h2" href="#s3">S3 Object Lock</a><a class="h2" href="#s4">S3 マルチリージョン アクセスポイント / アクセスポイント / Transfer Acceleration</a><a class="h2" href="#s5">Storage Gateway</a><a class="h2" href="#s6">FSx</a><a class="h2" href="#s7">EFS</a><a class="h2" href="#s8">判断ポイント</a><a class="h2" href="#s9">未確認</a><a class="h2" href="#s10">疑問・確認したい点</a></nav><main><h1>Week4-18: S3 詳細 / Storage Gateway / FSx / EFS（ストレージ）</h1>
+<p>出典（2026-09-26 に aws-mcp の search_documentation で原文を確認）: S3 User Guide「S3 Glacier storage classes」「Object Lock」「Batch Replication」「Delete marker replication」「Multi-Region Access Point の権限」、S3 FAQ、S3 Replication 機能ページ / PutBucketReplication API、Storage Gateway FAQ / Volume Gateway ユーザーガイド / ドキュメント概要、FSx「Help me choose」ページ、FSx for Lustre FAQ / re:Post、FSx for Windows「Accessing your data」、FSx for ONTAP FAQ / ユーザーガイド、EFS ユーザーガイド「Features」/ 機能ページ、re:Post（EFS スループットモード）、CloudFront DG（MRAP と OAC）。AWS ブログはノート内に明記</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>オンプレのファイルを NFS / SMB で S3 に保存（オブジェクトとして直接参照したい）</td>
+<td><strong>S3 File Gateway</strong></td>
+</tr>
+<tr>
+<td>オンプレの SMB ファイル共有を FSx for Windows File Server に低遅延で</td>
+<td><strong>FSx File Gateway</strong></td>
+</tr>
+<tr>
+<td>オンプレに iSCSI ブロックストレージ、データは S3 に置く（頻繁なデータだけローカルキャッシュ）</td>
+<td><strong>Volume Gateway（キャッシュ型）</strong></td>
+</tr>
+<tr>
+<td>オンプレに iSCSI、全データをローカルに置き、S3 へ非同期バックアップ</td>
+<td><strong>Volume Gateway（保管型）</strong></td>
+</tr>
+<tr>
+<td>既存のテープバックアップ運用を維持、テープを S3 / Glacier へ</td>
+<td><strong>Tape Gateway</strong></td>
+</tr>
+<tr>
+<td>Windows ワークロード、SMB、Active Directory、DFS</td>
+<td><strong>FSx for Windows File Server</strong></td>
+</tr>
+<tr>
+<td>HPC / ML の高スループット、S3 と連携</td>
+<td><strong>FSx for Lustre</strong></td>
+</tr>
+<tr>
+<td>NFS + SMB + iSCSI のマルチプロトコル、NetApp 機能（SnapMirror など）</td>
+<td><strong>FSx for NetApp ONTAP</strong></td>
+</tr>
+<tr>
+<td>Linux の共有 NFS ファイルシステム（マルチ AZ）</td>
+<td><strong>EFS</strong></td>
+</tr>
+<tr>
+<td>リージョン内の複数 AZ から同時に使う共有ファイル</td>
+<td><strong>EFS または FSx（Multi-AZ）</strong>。EBS は単一 AZ</td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">S3 ストレージクラス（アーカイブ系）</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>クラス</th>
+<th>最小保存期間</th>
+<th>想定アクセス頻度</th>
+<th>取り出し時間</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Glacier Instant Retrieval</strong></td>
+<td><strong>90 日</strong></td>
+<td>四半期に 1 回</td>
+<td><strong>ミリ秒</strong>（アーカイブではない）</td>
+</tr>
+<tr>
+<td><strong>Glacier Flexible Retrieval</strong></td>
+<td><strong>90 日</strong></td>
+<td>半年に 1 回</td>
+<td><strong>数分〜12 時間</strong>（アーカイブ）</td>
+</tr>
+<tr>
+<td><strong>Glacier Deep Archive</strong></td>
+<td><strong>180 日</strong></td>
+<td>年 1 回</td>
+<td><strong>9〜48 時間</strong>（アーカイブ）</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>最小期間より前に削除・上書き・別クラスへ移行しても、<strong>残りの期間分が課金</strong>される</li>
+<li>Deep Archive は最も安価（ブログ: 約 $1 / TB / 月）。長期の<strong>コンプライアンス・デジタルアーカイブ</strong>向け</li>
+<li>Intelligent-Tiering とライフサイクルは Week3 ノート 14 を参照</li>
+</ul>
+<h2 id="s2">S3 レプリケーション（補足。基本は Week2 ノート 09）</h2>
+<ul>
+<li><strong>デフォルトでは、ソースでの削除は削除マーカーがソースにのみ作られ、宛先には複製されない</strong>（誤削除・悪意ある削除から宛先を守るため）。<strong>削除マーカーのレプリケーション</strong>を有効にすると宛先でも削除される。<strong>タグベースのルールでは非対応</strong>、<strong>S3 RTC の 15 分 SLA の対象外</strong>、<strong>ライフサイクルの期限切れで作られた削除マーカーは複製されない</strong></li>
+<li><strong>S3 Replication Time Control（RTC）</strong>: ほとんどのオブジェクトを数秒で、<strong>99.99% を 15 分以内</strong>に複製。<strong>SLA は 99.9% を 15 分以内（月間）</strong>。メトリクスとイベント通知を含む。CRR にも SRR にも使える</li>
+<li><strong>S3 Batch Replication</strong>: <strong>既存のオブジェクトの複製</strong>に使う（ライブレプリケーションは新規オブジェクトのみ）。<strong>ソースバケットにレプリケーション設定が既にあること</strong>が前提。マニフェスト（S3 生成、または Inventory / CSV）が必要で、<strong>S3 生成のマニフェストはソースと同じリージョン</strong>に保存される。実行中は<strong>ライフサイクルルールを無効にすることを推奨</strong>（宛先が完全なレプリカにならないことがある）。<strong>宛先からバージョン ID 指定で削除したオブジェクトの再複製は不可</strong>（ソースを Batch Copy でその場コピーして新バージョンを作る）</li>
+<li>判断: 「既存オブジェクトも別リージョンへ複製したい」→ <strong>Batch Replication</strong>、「15 分以内の複製を SLA で保証」→ <strong>RTC</strong>、「宛先を誤削除から守る」→ <strong>削除マーカーは既定で複製されない</strong></li>
+</ul>
+<h2 id="s3">S3 Object Lock</h2>
+<ul>
+<li><strong>WORM（write-once-read-many）<strong>モデル。<strong>バージョニングが有効なバケットでのみ</strong>動作。保護は</strong>指定したオブジェクトバージョン</strong>だけに適用される</li>
+<li><strong>保持期間（retention period）</strong>: 固定（保持期限日を指定）または可変（イベントホールドとその期間。ホールド解除時に保持期限日が設定される）。オブジェクト単位、またはバケットの<strong>既定保持期間</strong>で設定。バケットポリシーで <strong><code>s3:object-lock-remaining-retention-days</code></strong> 条件キーを使い、許容する保持期間の範囲を制限できる</li>
+<li><strong>保持モード</strong>:<ul>
+<li><strong>ガバナンスモード</strong>: 特別な権限を持つユーザーだけがロック設定の変更・削除ができる。保持期間の<strong>テストに使える</strong></li>
+<li><strong>コンプライアンスモード</strong>: <strong>root ユーザーを含め誰も</strong>上書き・削除できない。<strong>モードの変更も保持期間の短縮もできない</strong></li>
+</ul>
+</li>
+<li><strong>リーガルホールド</strong>: 保持期間と同じ保護だが<strong>期限がなく、明示的に解除するまで有効</strong>。保持期間とは<strong>独立</strong>（両方、片方だけ、なしのどれも可）</li>
+<li>規制対応: <strong>SEC 17a-4、CFTC、FINRA</strong> について Cohasset Associates の評価を受けている</li>
+<li>判断: 「root ユーザーでも保持期間中は削除できないようにしたい（規制）」→ <strong>コンプライアンスモード</strong>、「特定のユーザーだけ例外的に削除できる」→ <strong>ガバナンスモード</strong>、「訴訟のため期限を決めずに保全」→ <strong>リーガルホールド</strong></li>
+</ul>
+<h2 id="s4">S3 マルチリージョン アクセスポイント / アクセスポイント / Transfer Acceleration</h2>
+<ul>
+<li><strong>Multi-Region Access Point（MRAP）</strong>: <strong>複数リージョンのバケットにまたがるグローバルエンドポイント</strong>。<strong>ネットワーク遅延が最も小さいバケットにリクエストをルーティング</strong>。内部で <strong>Global Accelerator</strong> を使うため、<strong>Transfer Acceleration を別途有効にする必要はない</strong>（ブログ）。<strong>CRR と組み合わせる</strong>と、最も遅延の小さいコピーへ動的にルーティングできる（FAQ）。インターネット・VPC・オンプレのリクエストに対応</li>
+<li><strong>Transfer Acceleration との違い（FAQ）</strong>: Transfer Acceleration は<strong>単一バケット</strong>への長距離転送を高速化。MRAP は<strong>複数リージョンの複数バケット</strong>にまたがる</li>
+<li><strong>MRAP の権限</strong>: クロスアカウントのリクエストは <strong>MRAP ポリシー、IAM ポリシー、（ルーティング先の）バケットポリシー</strong>のすべてが許可する必要がある。<strong>同一アカウントは IAM ポリシーだけ</strong>でよい。MRAP ポリシーで <strong>VPC からのリクエストのみ</strong>に制限できる。MRAP のポリシーの制限は、<strong>MRAP 経由のリクエストにだけ</strong>適用され、バケットへの直接アクセスは変わらない</li>
+<li><strong>CloudFront の OAC で MRAP をオリジンに</strong>できる。ただし<strong>オプトインリージョンのバケットを含む MRAP は非対応</strong></li>
+<li><strong>アクセスポイント</strong>: 1 バケットあたり最大 <strong>10,000</strong>（ブログ）。それぞれに固有の権限とネットワーク制御。<strong>同一アカウントまたは信頼する別アカウントのバケット</strong>にリンクできる。アクセスポイントポリシーは<strong>リソースベースで、バケットポリシーと合わせて評価</strong>される</li>
+</ul>
+<h2 id="s5">Storage Gateway</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>タイプ</th>
+<th>インターフェイス</th>
+<th>データの置き場所</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>S3 File Gateway</strong></td>
+<td>NFS / SMB</td>
+<td><strong>S3 にオブジェクトとして保存</strong>（ローカルキャッシュ）。S3 から直接オブジェクトとして参照でき、バケットポリシーも適用できる。監査ログを出力</td>
+</tr>
+<tr>
+<td><strong>FSx File Gateway</strong></td>
+<td>SMB</td>
+<td><strong>FSx for Windows File Server</strong></td>
+</tr>
+<tr>
+<td><strong>Volume Gateway</strong></td>
+<td>iSCSI（ブロック）</td>
+<td><strong>キャッシュ型</strong>: 主データは S3、頻繁なデータをローカルキャッシュ / <strong>保管型</strong>: 主データはローカル、S3 へ非同期バックアップ</td>
+</tr>
+<tr>
+<td><strong>Tape Gateway</strong></td>
+<td>iSCSI の仮想テープライブラリ（VTL）</td>
+<td>仮想テープは S3 に保存、<strong>Glacier / Glacier Deep Archive にアーカイブ</strong></td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>Volume Gateway</strong>: ボリュームのポイントインタイムコピーは <strong>EBS スナップショット</strong>として AWS に保存され、<strong>AWS Backup</strong> で保持を管理できる。EBS スナップショットは <strong>Volume Gateway のボリュームにも EBS ボリュームにも復元可能</strong></li>
+<li><strong>キャッシュ型ボリューム</strong>: <strong>1 GiB〜32 TiB</strong>、ゲートウェイあたり最大 <strong>32 ボリューム、合計 1,024 TiB（1 PiB）</strong>。書き込みはまず<strong>ローカルのキャッシュストレージ</strong>に置かれ、その後 S3 へアップロードされる。ローカル用の<strong>キャッシュストレージとアップロードバッファ</strong>を割り当てる</li>
+<li>判断: 「オンプレのアプリのバックアップ先を、既存のバックアップソフトを変えずに AWS へ」→ <strong>Tape Gateway</strong>、「オンプレの NAS を S3 のデータレイクに取り込む」→ <strong>S3 File Gateway</strong>、「オンプレの SMB 共有を FSx for Windows に置き、拠点でキャッシュ」→ <strong>FSx File Gateway</strong>（ブログの表現。FSx File Gateway から FSx への直接アクセスへ切り替える手順のブログもあるが、位置づけの変化は未確認）</li>
+</ul>
+<h2 id="s6">FSx</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Windows File Server</th>
+<th>Lustre</th>
+<th>NetApp ONTAP</th>
+<th>OpenZFS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>配置</td>
+<td><strong>Single-AZ / Multi-AZ</strong></td>
+<td><strong>Single-AZ のみ</strong>（Persistent / Scratch）</td>
+<td><strong>Single-AZ / Multi-AZ</strong></td>
+<td><strong>Single-AZ / Multi-AZ</strong></td>
+</tr>
+<tr>
+<td>可用性 SLA（原文）</td>
+<td>Multi-AZ <strong>99.99%</strong>、Single-AZ <strong>99.5%</strong></td>
+<td>Single-AZ <strong>99.5%</strong></td>
+<td>Multi-AZ <strong>99.99%</strong>、Single-AZ <strong>99.9%</strong></td>
+<td>Multi-AZ <strong>99.99%</strong>、Single-AZ <strong>99.5%</strong></td>
+</tr>
+<tr>
+<td>リージョン間レプリケーション</td>
+<td>なし（バックアップはクロスリージョン / クロスアカウント可）</td>
+<td>S3 のクロスリージョンレプリケーション経由</td>
+<td><strong>NetApp SnapMirror</strong></td>
+<td>なし（バックアップはクロスリージョン可）</td>
+</tr>
+<tr>
+<td>スナップショット</td>
+<td>✓</td>
+<td>なし（バックアップのみ）</td>
+<td>✓（+ インスタント クローン）</td>
+<td>✓（+ インスタント クローン）</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>Windows File Server</strong>: <strong>DFS Namespaces</strong> に対応（複数のファイルシステムを 1 つのフォルダ構造にまとめる。リンクターゲットにファイルシステムの DNS 名を設定）</li>
+<li><strong>Lustre</strong>: <strong>スクラッチ</strong>は一時的なデータ向けで、<strong>データは複製されず、サーバー障害で失われる</strong>。<strong>永続</strong>はデータが複製され、障害時にサーバーが置き換えられる。<strong>スクラッチ → 永続の変換は不可</strong>（S3 を経由して移行）。<strong>スクラッチはバックアップ不可</strong>。<strong>S3 のバケット / プレフィックスとデータリポジトリ関連付け（DRA）で連携</strong>（1 ファイルシステムあたり最大 8 つ。自動インポート / エクスポートを選べる。scratch_1 は非対応）。<strong>複数のファイルシステムを同じ S3 バケットにリンクできる</strong>が、同じファイルを複数で更新した場合の競合は<strong>アプリ側で調整</strong>が必要</li>
+<li><strong>ONTAP</strong>: <strong>NFS、SMB、iSCSI、NVMe/TCP</strong> に対応（iSCSI は HA ペア 6 個以下）。SVM ごとにエンドポイントがある。<strong>Multi-AZ のオンプレアクセスは VPN / Direct Connect + Transit Gateway</strong>。オンプレとのキャッシュは <strong>NetApp FlexCache / Global File Cache</strong></li>
+<li>判断: 「Lustre のデータを S3 の永続的な保存先と同期」→ <strong>DRA</strong>、「スクラッチの Lustre が障害で失われるのが許容できない」→ <strong>永続</strong>、「ONTAP のリージョン間 DR」→ <strong>SnapMirror</strong></li>
+</ul>
+<h2 id="s7">EFS</h2>
+<ul>
+<li><strong>ストレージクラス</strong>（原文）: <strong>Standard</strong>（SSD、サブミリ秒、複数 AZ）、<strong>Infrequent Access（IA）</strong>（四半期に数回）、<strong>Archive</strong>（年に数回以下）。<strong>One Zone / One Zone-IA</strong> は単一 AZ に冗長保存され、<strong>AWS Backup で自動バックアップ</strong>される。<strong>ファイルシステム作成後にストレージクラスは変更できない</strong>（コンソールのヘルプパネルの記述。Standard と One Zone の間の変更も不可という趣旨）</li>
+<li><strong>ライフサイクル管理</strong>: 既定の推奨ポリシーは <strong>Standard → IA が 30 日アクセスなし、→ Archive が 90 日アクセスなし</strong>。<strong>EFS Intelligent-Tiering</strong>で IA / Archive から Standard へ戻せる。Archive は <strong>Elastic スループット</strong>が前提で、Archive へ移行するポリシーがあると<strong>スループットモードを Bursting / Provisioned に変更できない</strong></li>
+<li><strong>スループットモード</strong>: <strong>Bursting</strong>（スループットが保存量に比例、バーストクレジット）、<strong>Provisioned</strong>（保存量と独立して指定。<strong>常時安定した高スループット</strong>向け）、<strong>Elastic</strong>（自動でスケールし、<strong>転送量（GiB）で課金</strong>。<strong>負荷が読めない・スパイクする</strong>場合に向く。<strong>General Purpose パフォーマンスモードが必要</strong>）。Provisioned でも、保存量から得られるベースラインの方が高ければ Bursting 相当になる</li>
+<li>判断: 「アクセスが予測できずスパイクする」→ <strong>Elastic</strong>、「常に一定の高スループットが必要」→ <strong>Provisioned</strong>、「バーストクレジットが枯渇する」→ <strong>Elastic / Provisioned へ変更</strong>（<code>BurstCreditBalance</code> を監視）、「コスト削減のため単一 AZ でよい」→ <strong>One Zone</strong></li>
+</ul>
+<h2 id="s8">判断ポイント</h2>
+<ul>
+<li>「オンプレから S3 へファイルを NFS / SMB で書き込み、S3 側でも直接オブジェクトとして使う」→ <strong>S3 File Gateway</strong></li>
+<li>「既存のテープバックアップを AWS に置き換え」→ <strong>Tape Gateway</strong></li>
+<li>「オンプレの iSCSI ボリュームで、全データを常にローカルに置く」→ <strong>Volume Gateway 保管型</strong>、「ローカルは頻繁なデータだけ」→ <strong>キャッシュ型</strong></li>
+<li>「規制で root も削除不可の WORM」→ <strong>Object Lock コンプライアンスモード</strong>（バージョニング必須）</li>
+<li>「複数リージョンのバケットへ、最寄りのバケットに自動ルーティング」→ <strong>MRAP（+ CRR）</strong></li>
+<li>「複製の遅延を 15 分以内に保証」→ <strong>S3 RTC</strong>（SLA は 99.9%）</li>
+<li>「既存オブジェクトを別バケットへ複製」→ <strong>Batch Replication</strong></li>
+<li>「Windows のファイル共有（AD、DFS、SMB）」→ <strong>FSx for Windows</strong>、「HPC / 機械学習の高スループット」→ <strong>FSx for Lustre</strong>（S3 と連携）、「NFS + SMB + iSCSI」→ <strong>FSx for ONTAP</strong></li>
+<li>「Linux の共有ファイル、複数 AZ のインスタンスから」→ <strong>EFS</strong></li>
+</ul>
+<h2 id="s9">未確認</h2>
+<ul>
+<li><strong>S3</strong>: Standard-IA / One Zone-IA の最小期間・最小サイズ、<strong>S3 Express One Zone</strong>、Glacier の取り出しオプション（Expedited / Standard / Bulk）と料金、ライフサイクル移行の制約、<strong>S3 Inventory / Storage Lens</strong>、<strong>Object Lambda</strong>、<strong>署名付き URL</strong>、<strong>バケットポリシーによる VPC エンドポイント制限</strong>、<strong>SSE-S3 / SSE-KMS / DSSE-KMS の詳細</strong>、<strong>MFA Delete</strong>、<strong>Multi-part upload の上限</strong>、<strong>Byte-range fetch</strong>、<strong>CRR のクロスアカウント時の所有者オーバーライド</strong>、<strong>Block Public Access</strong>、<strong>Access Points の VPC 制限</strong></li>
+<li><strong>Storage Gateway</strong>: <strong>FSx File Gateway の今後の扱い</strong>（原文で最新状況を要確認）、<strong>ホスト先（オンプレ VM / EC2 / ハードウェアアプライアンス）</strong>、<strong>帯域制限</strong>、<strong>Volume Gateway の保管型の上限</strong>、<strong>S3 File Gateway のキャッシュ更新</strong>（RefreshCache）、S3 ストレージクラスの選択</li>
+<li><strong>FSx</strong>: <strong>Windows の AD 連携（AWS Managed Microsoft AD / セルフマネージド）</strong>、<strong>Windows の Multi-AZ フェイルオーバー</strong>、<strong>Lustre のスループット階層</strong>、<strong>ONTAP の階層化（容量プール）</strong>、<strong>OpenZFS の用途</strong>、<strong>FSx のバックアップ</strong></li>
+<li><strong>EFS</strong>: <strong>パフォーマンスモード（General Purpose / Max I/O）</strong>、<strong>リージョン間レプリケーション</strong>、<strong>マウントターゲットとセキュリティグループ</strong>、<strong>アクセスポイント</strong>、<strong>転送中 / 保管時の暗号化</strong>、<strong>EFS の料金</strong>、<strong>AWS DataSync でのデータ移行</strong></li>
+<li><strong>選定全般</strong>: EBS / インスタンスストア / EFS / FSx の総合比較</li>
+</ul>
+<h2 id="s10">疑問・確認したい点</h2>
+</main></body></html>

@@ -50,6 +50,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 ## Week4 ノート（Week3 までで未カバーの頻出分野の補強）
 - [16 CloudFront と Global Accelerator（OAC、署名付き URL、エッジ関数、オリジンフェイルオーバー、静的 IP）](notes/week4/16-cloudfront-global-accelerator.md)
 - [17 メッセージングと疎結合（SQS、SNS、EventBridge、Step Functions、API Gateway）](notes/week4/17-messaging-decoupling.md)
+- [18 ストレージ（S3 詳細、Storage Gateway、FSx、EFS）](notes/week4/18-storage.md)
 
 ## 構成
 - `notes/` ドメイン別・週別の要点ノート（Q&A付き）

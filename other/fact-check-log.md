@@ -184,3 +184,14 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 17: API Gateway（API 種別、REST / HTTP 選択基準、エンドポイント 3 種、キャッシュ TTL 300〜3,600 秒、スロットリング、アカウント 10,000 RPS・バースト 5,000） | ✅ 原文どおり |
 | 17: EventBridge（アーカイブ / リプレイ、クロスアカウント・クロスリージョン、別アカウントの直接ターゲット 5 種、Pipes、Scheduler） | ✅ 原文どおり（クロスリージョンの詳細はブログ） |
 | 17: SQS の Lambda 連携・DLQ リドライブ・暗号化、SNS のリトライ、EventBridge のスキーマ / API Destinations / グローバルエンドポイント、Step Functions の Retry/Catch・上限値、API Gateway の統合タイムアウト・オーソライザー・リソースポリシー | 未確認 |
+
+## 2026-09-26（Week4 ノート 18）
+根拠: aws-mcp の search_documentation で取得した公式ドキュメント原文（S3 User Guide、S3 / Storage Gateway / FSx の FAQ、Volume Gateway ガイド、FSx / EFS ユーザーガイド、re:Post）。一部は AWS ブログ（ノート内に明記）
+
+| 対象 | 結果 |
+|---|---|
+| 18: Glacier 3 クラス（最小期間 90/90/180 日、取り出し時間）、削除マーカーの既定動作、RTC（99.99% / 15 分、SLA 99.9%）、Batch Replication の条件、Object Lock（モード、リーガルホールド、バージョニング必須、条件キー） | ✅ 原文どおり |
+| 18: MRAP（権限の 3 ポリシー、VPC 制限、OAC 対応とオプトインリージョンの制限）、Storage Gateway 4 タイプ、Volume Gateway キャッシュ型の上限（1 GiB〜32 TiB、32 ボリューム、1 PiB） | ✅ 原文どおり |
+| 18: FSx 4 種の配置・SLA・リージョン間レプリケーション（比較表）、Lustre のスクラッチ / 永続・DRA（最大 8）、ONTAP のプロトコル、EFS のストレージクラス・ライフサイクル既定（30/90 日）・スループットモード | ✅ 原文どおり |
+| 18: MRAP が Global Accelerator を使い Transfer Acceleration 不要、アクセスポイント上限 10,000、Deep Archive 約 $1/TB | ➕ AWS ブログの記述（DG 原文では未確認） |
+| 18: S3 Standard-IA 等の最小期間、Express One Zone、Glacier 取り出しオプション、FSx File Gateway の位置づけ、Windows の AD 連携、EFS のパフォーマンスモード・レプリケーション | 未確認 |
