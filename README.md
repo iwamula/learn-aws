@@ -43,6 +43,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 
 ## Week3 ノート
 - [12 CloudFormation / CDK（StackSets、ドリフト、変更セット、削除・置換の保護）](notes/week3/12-cloudformation-cdk.md)
+- [13 監視・監査・コンプライアンス（CloudTrail 組織証跡、Config、CloudWatch 横断監視、X-Ray）](notes/week3/13-monitoring.md)
 
 ## 構成
 - `notes/` ドメイン別・週別の要点ノート（Q&A付き）

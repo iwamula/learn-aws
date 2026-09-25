@@ -1,4 +1,4 @@
-# 進捗と次のタスク（最終更新: 2026-09-26（Week3 ノート 12 完了））
+# 進捗と次のタスク（最終更新: 2026-09-26（Week3 ノート 13 完了））
 
 ## 完了
 - [x] README にロードマップ作成（試験日 2026-10-24）
@@ -19,9 +19,10 @@
   - [x] 11 コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）— 2026-09-26 作成、ECS/EKS/Lambda 公式ドキュメント原文で裏取り済み（Lambda の VPC/AZ、SnapStart 制約は未確認）
   - [ ] 各ノート完成後、README の Week2 ノート一覧にリンクを追加する（08〜11 は追加済み）
 
-- [ ] Week3 ノート作成（README のロードマップ: 10/9-10/15）。12 は完了。次は 13。案: 13 監視（CloudWatch/X-Ray、Config、CloudTrail の組織横断）、14 コスト最適化（Cost Explorer、Savings Plans/RI、Compute Optimizer）、15 移行（DMS/SCT、DataSync、Snow、MGN、7R）。書式は notes/week2 に合わせる
+- [ ] Week3 ノート作成（README のロードマップ: 10/9-10/15）。12〜13 は完了。次は 14。案: 14 コスト最適化（Cost Explorer、Savings Plans/RI、Compute Optimizer）、15 移行（DMS/SCT、DataSync、Snow、MGN、7R）。書式は notes/week2 に合わせる
   - [x] 12 CloudFormation/CDK — 2026-09-26 作成、CloudFormation/CDK 公式ドキュメント原文で裏取り済み（drift-aware 変更セット、Concurrency mode、終了保護などは未確認）
-  - [ ] 各ノート完成後、README の Week3 ノート一覧にリンクを追加する（12 は追加済み）
+  - [x] 13 監視・監査（CloudTrail 組織証跡/Insights/整合性検証、Config アグリゲーター/組織ルール/修復、CloudWatch OAM・Logs 集約・複合アラーム、X-Ray サンプリング）— 2026-09-26 作成、公式ドキュメント原文で裏取り済み（CloudWatch のメトリクス/Logs Insights/異常検知、EventBridge は未確認）
+  - [ ] 各ノート完成後、README の Week3 ノート一覧にリンクを追加する（12〜13 は追加済み）
 
 - [x] notes/ の md を HTML に変換するスクリプト（2026-09-26）— `npm run build:html`（`scripts/build-html.mjs`、marked、出力は gitignore 済みの `docs/`）。md が正本で、変換に AI トークンは不要。`--watch` 対応。新規ノートを追加したら再実行するだけ
 

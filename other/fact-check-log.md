@@ -125,3 +125,17 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 12: CDK のコンストラクト L1/L2/L3、ブートストラップの内容（S3/ECR/IAM、CDKToolkit、環境ごと） | ✅ 原文どおり |
 | 12: 「DB は DeletionPolicy と UpdateReplacePolicy の両方を付ける」 | ⚠️ 原文にそう推奨する記述はなく、原文の例が両方 Retain であることのみ。ノートは例の説明に修正済み |
 | 12: drift-aware 変更セット、Concurrency mode の詳細、終了保護、サービスロール、Resource type support の範囲、CDK の diff/Pipelines | 未確認（ページ取得に失敗、または未取得） |
+
+## 2026-09-26（Week3 ノート 13）
+根拠: 公式ドキュメント原文（curl）— CloudTrail User Guide（組織証跡、整合性検証、concepts、Insights、組織イベントデータストア）、Config Developer Guide（アグリゲーター、組織ルール、組織適合パック、修復、自動修復）、CloudWatch User Guide（クロスアカウントオブザーバビリティ、複合アラーム）、CloudWatch Logs User Guide（クロスアカウントサブスクリプション、データ集約）、X-Ray Developer Guide（サンプリングルール）
+
+| 対象 | 結果 |
+|---|---|
+| 13: 組織証跡（委任管理者、コンソールはマルチリージョン、SLR、加入・脱退時の挙動、オプトインリージョン、S3 構成、Event history 90 日・自アカウントのみ、メンバーは変更不可） | ✅ 原文どおり |
+| 13: イベント種別（既定は管理イベントのみ）、Insights（ベースライン、write 管理イベントの呼び出し率、データイベント Insights は証跡のみ）、整合性検証（SHA-256、1 時間ごとのダイジェスト、RSA 署名、有効化のみでは検証されない） | ✅ 原文どおり |
+| 13: Config アグリゲーター（読み取り専用、Organizations は認可不要）、組織ルール／適合パック（API のみ、リージョン単位、7 時間の再試行、委任管理者と SLR）、修復（SSM Automation、再試行、準拠済みに対する修復の注意） | ✅ 原文どおり |
+| 13: OAM（sink/link、上限 100,000 / 5、種別の不一致時の挙動、Organizations で自動オンボード）、Logs 集約（同一リージョン制約、新規ログのみ、LogsManaged タグ）、複合アラームの循環、X-Ray サンプリング（reservoir 1/秒 + 5%、ペアレントベース） | ✅ 原文どおり |
+| 13: CloudTrail Lake の新規受付終了（2026-05-31 以降） | ✅ 原文の注記どおり（試験範囲での扱いは未確認） |
+| 13: 「組織外アカウントはソース側が集約アカウントを認可する」 | ⚠️ 原文は Authorization の定義と「Organizations なら不要」のみ。組織外の手順は推論 |
+| 13: ネットワークアクティビティイベント、CloudTrail/Config の料金、Config レコーダー、Logs Insights・メトリクスフィルター・異常検知、サブスクリプション宛先の作成手順、EventBridge の集約 | 未確認 |
+
