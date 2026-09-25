@@ -148,3 +148,15 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | Q4: フックの呼び出しタイミングは CloudFormation と Cloud Control API の操作の直前、Control Tower のプロアクティブコントロールは CloudFormation でプロビジョニングされるリソースに適用 | ✅ 原文どおり |
 | Q4: Terraform AWS プロバイダーが各サービス API を直接呼ぶため対象外 | ➕ 原文に Terraform の記述はなく、上記の原文からの推論 |
 | Q4: awscc プロバイダー（Cloud Control API 経由）ならフックが効く可能性 | 未確認 |
+
+## 2026-09-26（Week3 ノート 14）
+根拠: 公式ドキュメント原文（curl）— Savings Plans User Guide、EC2 User Guide（RI、スコープ、交換、Marketplace、Spot）、Billing User Guide（一括請求、RI/SP 共有、コスト配分タグ、Cost Explorer、Budgets、Cost Anomaly Detection、Data Exports）、Compute Optimizer User Guide、S3 User Guide（Intelligent-Tiering、ライフサイクル、ストレージクラス）
+
+| 対象 | 結果 |
+|---|---|
+| 14: Savings Plans 4 種（割引率、対象、Dedicated の $2/時、EKS 料金は対象外）、適用順（RI → EC2 Instance SP → Compute SP、オーナー優先、割引率順、Fargate はメモリ先） | ✅ 原文どおり |
+| 14: RI（属性、1/3 年、自動更新なし、キャンセル不可、Standard/Convertible、リージョナル/ゾーナル、Convertible 交換条件、Marketplace 条件・手数料 12%） | ✅ 原文どおり |
+| 14: 組織内共有（共有モード、Cost Categories によるグループ条件、請求転送時の制約、メンバー離脱時の Cost Explorer データ）、Budgets（種類、アクション、更新頻度）、Cost Anomaly Detection、Data Exports、Cost Explorer（13/18 か月、API $0.01） | ✅ 原文どおり |
+| 14: Compute Optimizer（対象リソース、14 日 / 93 日、外部メトリクス）、S3 Intelligent-Tiering（30/90/90/180 日、128 KB 未満）、ライフサイクル（ウォーターフォール、128 KB 既定、最小期間課金）、Spot（2 分前通知、hibernate は警告なし、最大価格で中断増） | ✅ 原文どおり |
+| 14: 「EC2 メモリは CloudWatch 標準では出ないため CloudWatch エージェントも一般的」 | ➕ 原文は外部メトリクス取り込みの記述のみ。ノート内で推論と明記 |
+| 14: Intelligent-Tiering の取り出し料金、Glacier Flexible / Deep Archive の最小期間、データ転送料金、Trusted Advisor、Spot Fleet 戦略、リバランス推奨、Savings Plans の返品ポリシー、ODCR | 未確認 |
