@@ -62,7 +62,7 @@
 | 購入のキュー | 可 | 不可 |
 
 - **スコープで価格は変わらない**
-- **キャパシティ確保が要件なら、ゾーナル RI**（または On-Demand キャパシティ予約。後者はこのノートでは未確認）。**リージョナル RI は割引だけ**
+- **キャパシティ確保が要件なら、ゾーナル RI**（または On-Demand キャパシティ予約。即時利用なら期間の縛りなしでいつでも変更・キャンセルでき、キャンセルまで課金される。将来日付の予約は期間の約束があり、キャンセル料がかかる場合がある。割引は RI / Savings Plans と別）。**リージョナル RI は割引だけ**
 
 ### Convertible RI の交換
 - 条件: **有効**、**未処理の交換なし**、**残り 24 時間以上**。**回数制限なし**だが、**新しい RI の価値が交換元と同等以上**であること（下回る場合は自動で数量を調整）
@@ -120,7 +120,7 @@
 ## S3 のコスト最適化
 ### Intelligent-Tiering
 - **アクセスパターンが不明・変動する場合**に自動で階層移動。**小さな月額のオブジェクト監視・自動化料金**がかかる
-- **自動の階層**: Frequent → **30 日アクセスなしで Infrequent** → **90 日アクセスなしで Archive Instant Access**（取り出し料金の有無は今回の原文範囲では未確認）
+- **自動の階層**: Frequent → **30 日アクセスなしで Infrequent** → **90 日アクセスなしで Archive Instant Access**（S3 Intelligent-Tiering に取り出し料金はなく、オブジェクト単位の月額のモニタリング・自動化料金がかかる。S3 User Guide）
 - **任意の階層**（有効化が必要）: **Archive Access**（最短 90 日、最大 730 日まで延長可、**取り出しに数時間、標準で 3〜5 時間**）、**Deep Archive Access**（最短 180 日）
 - **アクセスされると Frequent に自動で戻る**（GetObject 等）。HeadObject や List 系はアクセス扱いにならない
 - **128 KB 未満のオブジェクトは監視対象外**で、常に Frequent Access 階層
@@ -129,7 +129,7 @@
 - **ライフサイクルは「ウォーターフォール」型**で、**下位の（より冷たい）クラスへの移行のみ**（例: Standard → Standard-IA → Glacier）。逆方向は不可
 - **128 KB 未満のオブジェクトは、既定でどのクラスにも移行しない**（2024 年 9 月以降の既定。移行リクエスト料金が節約を上回るため）。フィルターで変更可
 - **最小保存期間に満たずに移行・削除すると残りの期間分が課金**される。Standard-IA / One Zone-IA は **30 日**、Glacier Instant Retrieval は **90 日**。**最小期間が終わる前に次のクラスへ移すルールは 1 つのルールでは作れない**（例: GIR に 4 日後 → Deep Archive に 20 日後は不可）
-- 用途の目安: **アクセス頻度が低いが即時取得が必要 → Standard-IA / Glacier Instant Retrieval**、**再作成可能で単一 AZ でよい → One Zone-IA**、**数時間の取得待ちでよい長期保管 → Glacier Flexible / Deep Archive**（後者の最小期間は未確認）
+- 用途の目安: **アクセス頻度が低いが即時取得が必要 → Standard-IA / Glacier Instant Retrieval**、**再作成可能で単一 AZ でよい → One Zone-IA**、**数時間の取得待ちでよい長期保管 → Glacier Flexible / Deep Archive**（最小保存期間は Standard-IA / One Zone-IA が 30 日、Glacier Instant / Flexible が 90 日、Deep Archive が 180 日。S3 User Guide、ノート 18 参照）
 
 ## Spot Instances
 - **未使用のキャパシティを大幅割引で利用**。EC2 が容量を必要とすると**中断（interruption）**される。**理由: キャパシティ、価格（最大価格を指定した場合）、制約（起動グループ / AZ グループ）**

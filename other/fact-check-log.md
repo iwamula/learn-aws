@@ -27,8 +27,6 @@
 | 03: Inbound/Outbound Endpoint と転送ルール | ✅ 公式と一致。Route 53 Resolver は「Route 53 VPC Resolver」に改称 → 見出しに追記 |
 
 ## 未確認（公式で裏取りできていない項目）
-- 03: Resolver エンドポイント/ルールの数値上限、PHZ の「Route 53 Profiles」との関係（今回未調査）
-- 02: TGW ピアリングが静的ルートのみという記述の原文確認
 
 ## 注意
 WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5Gbpsと返した）。数値は原文で確認すること。
@@ -220,3 +218,37 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 19: Firewall Manager の NACL ポリシー、GuardDuty の複数アカウント設定（EKS_ADDON_MANAGEMENT、GuardDutyManaged タグ） | ✅ 原文どおり |
 | 19: GuardDuty のプロテクションプランと推奨構成、ACM の DNS / HTTP 検証とメール検証廃止、Network Firewall と WAF の比較、WAF の Count モード推奨 | ➕ AWS ブログ・製品ページの記述（DG 原文では未確認） |
 | 19: WAF の WCU・評価順序、Shield Advanced の料金、Secrets Manager と Parameter Store の比較、ACM のエクスポート条件・プライベート CA、GuardDuty 各プランのデータソース、Network Firewall のデプロイモデル | 未確認 |
+
+## 2026-09-26（Week1 の残り未確認: Resolver 上限・Profiles・TGW ピアリング）
+根拠: 公式ドキュメント原文（curl）— Route 53 Developer Guide「Quotas」（DNSLimitations.md）、「What are Amazon Route 53 Profiles?」、TGW Guide「Transit gateway peering attachments」。
+
+| 項目 | 結果 |
+|---|---|
+| 03: Resolver の数値上限 | ➕ エンドポイント 4/リージョン/アカウント、エンドポイントあたり IP 6、ルール 1,000、ルール-VPC 関連付け 2,000、IP あたり UDP 10,000 QPS（Service Quotas で引き上げ可。IP/ルール 6 は固定） |
+| 03: Route 53 Profiles | ➕ PHZ・Resolver ルール・DNS Firewall・インターフェイス VPC エンドポイント・クエリログ設定を一括適用。1 VPC 1 Profile、RAM 共有、ローカル設定が優先。上限は Profile 5/アカウント、VPC 1,000/Profile ほか。PHZ 関連付け 300 超は Profiles 推奨 |
+| 02: TGW ピアリングは静的ルート | ✅ 原文「add a static route to the transit gateway route table that points to the transit gateway peering attachment」。一意の ASN を推奨（将来のルート伝播機能のため） |
+| 03: TGW ピアリング越しの Resolver | ➕ ピアリングは別リージョンの Route 53 Resolver による DNS 名前解決をサポートしない（原文） |
+
+## 2026-09-26（07 組織証跡ログの改ざん防止）
+根拠: aws-mcp search_documentation の原文（AWS SRA「Log Archive account」、CloudTrail「Validating CloudTrail log file integrity」、CloudTrail FAQ）
+
+| 項目 | 結果 |
+|---|---|
+| 07: 組織証跡ログの改ざん防止 | ✅ 整合性検証は「変更・削除されたか」の検知。防止側は S3 Object Lock（SRA が選択肢として明記）。S3 MFA Delete はダイジェストファイルの保護強化（整合性検証ドキュメント）、ログ全体の追加保護（FAQ） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第1弾）
+根拠: 公式ドキュメント原文（curl / Python で本文取得）— CloudFormation User Guide「Protect stacks from being deleted」、S3 User Guide「Understanding and managing storage classes」「Intelligent-Tiering」、EC2 User Guide「Capacity Reservations」、ACM User Guide「Exportable public certificates」、GuardDuty User Guide「Runtime Monitoring」、CloudFront Developer Guide（Lambda@Edge、S3 origin の OAC）、WAF Developer Guide、Global Accelerator Developer Guide
+
+| 項目 | 結果 |
+|---|---|
+| 12: スタックの終了保護 | ✅ 既定無効、有効だと削除が失敗、ネストは親から継承（単独変更不可）、親の更新による削除は可 |
+| 14: ODCR | ✅ 即時は期間縛りなし・いつでもキャンセル、将来日付は期間あり・キャンセル料の可能性 |
+| 14: Intelligent-Tiering の取り出し料金 | ✅ なし（モニタリング・自動化料金のみ） |
+| 14: 各クラスの最小期間 | ✅ Standard-IA / One Zone-IA 30 日（Glacier 系はノート 18 で確認済み） |
+| 19: GuardDuty Runtime Monitoring の EC2 | ✅ EKS / ECS on Fargate / EC2 に対応。Fargate 上の EKS は非対応 |
+| 19: ACM エクスポート可能証明書 | ✅ 198 日有効、45 日前に更新、デプロイは利用者管理、追加料金。検証は原文で DNS またはメール（ノートの「メール検証廃止」はブログ由来で別件） |
+| 16: Lambda@Edge の発行リージョン | ✅ us-east-1 |
+| 16: S3 ウェブサイトエンドポイントと OAC | ✅ OAC / OAI 不可（カスタムオリジン）。代替の保護手段は未確認のまま |
+| 16: WAF の geo match | ✅ ルールステートメントが存在。CloudFront 地理的制限との使い分けは未確認 |
+| 16: CloudFront に静的 IP がないこと | 未確認（Global Accelerator が既定で静的 IP 2 個を提供する点のみ ✅） |
+| 上記以外の 08〜20 の未確認項目（Aurora Global 昇格 1 分未満、CloudTrail ネットワークアクティビティイベント、Kinesis 料金、SQS/SNS/EventBridge 上限比較など） | 未確認（今回対象外） |

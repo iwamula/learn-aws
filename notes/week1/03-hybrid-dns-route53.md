@@ -12,11 +12,15 @@
 - **プライベートホストゾーン (PHZ)**: VPC に関連付けて内部名を解決。**別アカウントのVPC**へ関連付けるには認可（`CreateVPCAssociationAuthorization`）＋関連付けが必要
 - VPC の `enableDnsHostnames` / `enableDnsSupport` を有効にしないと PHZ は機能しない
 - 多数のVPC/アカウントの構成では、DNS 集約 VPC に Resolver を置き、TGW 経由で各VPCが利用する構成がよく出る
+- **Route 53 Profiles**: PHZ、Resolver ルール（転送・システム）、DNS Firewall ルールグループ、インターフェイス VPC エンドポイント、Resolver クエリログ設定を 1 つの Profile にまとめ、多数の VPC・アカウントへ一括適用する（RAM で同一リージョンのアカウントに共有可）。1 VPC につき Profile は 1 つ。VPC 側のローカル設定が Profile より優先され、競合する名前は最も具体的なものが勝つ。PHZ に関連付けられる VPC は 300 まで、それ以上は Profiles を推奨（公式の記述）
+- **Resolver の既定の上限**（リージョン・アカウントあたり）: エンドポイント 4、エンドポイントあたり IP アドレス 6、ルール 1,000、ルールと VPC の関連付け 2,000。エンドポイントの IP アドレス 1 つあたり UDP 10,000 QPS（クエリ率が 50% を超えたら IP を追加）。いずれも Service Quotas で引き上げ申請できる（IP アドレス/ルールあたり 6 は固定）
+- **Profiles の既定の上限**: アカウントあたり Profile 5、Profile あたり VPC 1,000・Resolver ルール 1,000・PHZ 5,000・DNS Firewall ルールグループ 5・クエリログ設定 2
 
 ## 判断ポイント
 - 「オンプレの端末が AWS の EC2 のプライベート名を引きたい」→ Resolver Inbound Endpoint
 - 「AWS からオンプレの AD ドメインを引きたい」→ Outbound Endpoint + 転送ルール
 - 「全アカウントに同じ転送ルールを配りたい」→ RAM 共有
+- 「多数の VPC/アカウントに PHZ・転送ルール・DNS Firewall を一括で揃えたい」→ Route 53 Profiles
 - 「リージョン障害時に別リージョンへ切り替え」→ フェイルオーバー + ヘルスチェック（または Application Recovery Controller）
 - 「世界中のユーザーに最寄りへ」→ レイテンシールーティング。「国ごとに出し分け・規制対応」→ 位置情報
 

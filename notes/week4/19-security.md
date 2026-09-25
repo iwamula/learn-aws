@@ -53,13 +53,13 @@
 
 ## ACM
 - **リージョナルなサービス**: 証明書は**利用するサービスと同じリージョン**で発行 / インポートする（re:Post）。**CloudFront 用は us-east-1（バージニア北部）**
-- **別リージョン / 別アカウントで使うには**、**エクスポート可能なパブリック証明書**を発行するか、**リージョンごとに個別に発行**する（re:Post。エクスポートの条件・料金は未確認）
+- **別リージョン / 別アカウントで使うには**、**エクスポート可能なパブリック証明書**を発行するか、**リージョンごとに個別に発行**する（re:Post。エクスポート可能な証明書は、DNS 検証またはメール検証で発行し、証明書・秘密鍵・チェーンをエクスポートできる。有効期間 198 日、期限の 45 日前に更新、デプロイは利用者が管理、追加料金あり。ACM User Guide）
 - **検証方式**: **DNS 検証**（CNAME レコード。**レコードが残っている限り自動更新**）と、**CloudFront 向けの HTTP 検証**（ブログ。**メール検証は今後廃止**。詳細な時期は未確認）
 - 判断: 「CloudFront に独自ドメインの HTTPS」→ **us-east-1 で ACM 証明書**、「マルチリージョンの ALB に同じドメインの証明書」→ **各リージョンで証明書を発行**、「証明書の更新を自動化」→ **DNS 検証**
 
 ## GuardDuty（プロテクションプラン）
 - **基本（Foundational）**: CloudTrail 管理イベント、VPC フローログ、DNS ログなどを分析（DNS ログは**既定の VPC DNS リゾルバー使用時のみ**処理される。re:Post）
-- **プロテクションプラン**（ブログ）: **S3 Protection、EKS Protection、Runtime Monitoring（EKS / ECS。EC2 は未確認）、Malware Protection（EC2 / S3）、Lambda Protection、RDS Protection**。**存在するリソースの分だけ課金**され、EKS を使っていなければ EKS Protection を有効にしても課金されない。**新しいサービスを使い始めたときも自動でカバー**できるため、該当するプランを有効にしておく方針
+- **プロテクションプラン**（ブログ）: **S3 Protection、EKS Protection、Runtime Monitoring（EKS / ECS on Fargate / EC2。ただし Fargate 上の EKS は非対応。GuardDuty User Guide）、Malware Protection（EC2 / S3）、Lambda Protection、RDS Protection**。**存在するリソースの分だけ課金**され、EKS を使っていなければ EKS Protection を有効にしても課金されない。**新しいサービスを使い始めたときも自動でカバー**できるため、該当するプランを有効にしておく方針
 - **ワークロード別の推奨**（ブログ）: EC2 + S3 → **Foundational + S3 Protection + Malware Protection for EC2**、コンテナ（EKS / ECS）→ **+ EKS Protection + Runtime Monitoring**、Lambda 中心 → **Foundational + Lambda Protection**（S3 トリガーなら S3 Protection も）、Aurora / RDS → **Foundational + RDS Protection + S3 Protection + Malware Protection for S3**
 - **複数アカウント**: **委任された GuardDuty 管理者アカウント**から、メンバーアカウントごとに Runtime Monitoring などを有効化。**EKS のエージェントは GuardDuty が管理する（`EKS_ADDON_MANAGEMENT`）か、手動**。**タグ `GuardDutyManaged=false` で除外**できる。**タグの変更を承認済みプリンシパルだけに制限**するポリシーを組織で設定できる
 - 判断: 「S3 バケットの不審なアクセス」→ **S3 Protection**、「コンテナ内の不審なプロセス」→ **Runtime Monitoring**、「EBS の悪意あるファイル」→ **Malware Protection for EC2**
