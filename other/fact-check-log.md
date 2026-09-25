@@ -46,3 +46,35 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 05: 許可セットを割り当てるとアカウントに IAM ロールが作られ一時認証情報でアクセス | 未確認（一般知識で記載） |
 | 07: Macie / Inspector / Detective / Firewall Manager の委任管理者 | 未確認 |
 | 07: 組織証跡ログの改ざん防止策（S3 Object Lock 等） | 未確認（ノートからは削除） |
+
+## 2026-09-25（qa/organizations-scp.md Q2）
+| 対象 | 結果 |
+|---|---|
+| OU は1組織に最大1,000、ネスト最大5段。OU へのポリシーは配下の子OUの全アカウントに効く | ✅ Organizations ユーザーガイド原文 |
+| 1アカウントは1つの OU にのみ所属 | 未確認 |
+| AD の OU/GPO との比較 | 未確認（一般知識で記載） |
+
+## 2026-09-25（Week2 ノート 08）
+根拠: AWS ホワイトペーパー「Disaster Recovery of Workloads on AWS」"Disaster recovery options in the cloud" の原文（curl）
+
+| 対象 | 結果 |
+|---|---|
+| 08: DR 4パターンの定義、Pilot Light と Warm Standby の違い、Hot Standby、Active/Active の RPO | ✅ 原文どおり |
+| 08: AWS Backup（リージョン間・アカウント間コピー、自動リストア非対応、EC2 メタデータは同一リージョンのみ）、S3 削除マーカーは既定でソースのみ | ✅ 原文どおり |
+| 08: Aurora Global Database の昇格 1 分未満、RDS リードレプリカ昇格は数分＋再起動 | ✅ 原文どおり |
+| 08: ARC / 加重の変更 / Global Accelerator のダイヤル（コントロールプレーン）/ CloudFront オリジンフェイルオーバー、Elastic Disaster Recovery（Pilot Light、EC2 のみで RDS 非対象） | ✅ 原文どおり |
+| 08: 各パターンの RTO/RPO の数値目安 | 未確認（原文は図のみ） |
+| 08: Route 53 フェイルオーバーレコード詳細、ARC のクラスター構成 | 未確認 |
+
+## 2026-09-25（Week2 ノート 09）
+根拠: 公式ドキュメント原文（curl）— Aurora User Guide（Global Database）、DynamoDB Developer Guide（Global tables）、S3 User Guide（Replication）、RDS User Guide（Cross-Region read replicas）、ElastiCache User Guide（Global datastores）
+
+| 対象 | 結果 |
+|---|---|
+| 09: Aurora Global Database の構成（プライマリ + セカンダリ最大10、セカンダリのリーダー最大16、スイッチオーバーとフェイルオーバーの違い、制約） | ✅ 原文どおり |
+| 08/09: Aurora のセカンダリ数 | ⚠️ DR ホワイトペーパーは「最大5」、Aurora User Guide は「最大10」で**不一致**。User Guide を優先、要再確認 |
+| 09: DynamoDB MREC / MRSC（3リージョン、witness、作成後の変更不可、同一アカウントのみ）、SLA 99.999%、マルチアカウント | ✅ 原文どおり |
+| 09: S3 レプリケーション（バージョニング必須、RTC 99.99%/15分、削除マーカー・ライフサイクル・既レプリケート済み・アーカイブ層の扱い） | ✅ 原文どおり |
+| 09: RDS クロスリージョンレプリカの暗号化（ソース暗号化必須、宛先の KMS キー） | ✅ 原文どおり |
+| 09: ElastiCache Global Datastore（ノードベースのみ、リージョン間の自動フェイルオーバー非対応） | ✅ 原文どおり |
+| 09: Aurora write forwarding の整合性レベル、RPO 管理機能、MRSC の対応リージョン、S3 クロスアカウントの所有者上書き | 未確認 |

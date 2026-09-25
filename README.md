@@ -35,6 +35,10 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 - [06 Direct Connect の冗長構成](notes/week1/06-direct-connect-resiliency.md)
 - [07 セキュリティサービスの組織横断集約](notes/week1/07-org-wide-security-services.md)
 
+## Week2 ノート
+- [08 Multi-AZ / Multi-Region と DR 4パターン](notes/week2/08-dr-strategies.md)
+- [09 データ層のリージョン間構成](notes/week2/09-cross-region-data.md)
+
 ## 構成
 - `notes/` ドメイン別・週別の要点ノート（Q&A付き）
 - `qa/` 間違いノート・自作Q&A（`qa/iam.md` など）
