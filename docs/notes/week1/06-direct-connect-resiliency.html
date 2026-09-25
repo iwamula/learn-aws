@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Resiliency Toolkit の3モデル</a><a class="h2" href="#s1">障害時の切り替え</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. ロケーション障害にも耐え、SLA 99.99% を目指したい。どの構成？</a><a class="h3" href="#s5">Q2. 専用線が切れても業務を止めたくないが、コストは抑えたい。どうする？</a><a class="h3" href="#s6">Q3. リンク障害の検知を速くしたい。BGP タイマーを短くする以外の方法は？</a><a class="h3" href="#s7">Q4. 帯域を増やしたい。LAG は冗長化の手段になる？</a><a class="h3" href="#s8">Q5. 1本の DX で複数リージョンの VPC や多数の VPC に到達し、DX ロケーション間で拠点同士も直接つなぎたい。使う機能は？</a><a class="h3" href="#s9">Q6. 数値確認。BGP の既定タイマーは？ 障害時の切り替えを急ぎで、すぐ（数分〜）回線が必要なときは？</a><a class="h2" href="#s10">注意（ドキュメント間の不一致）</a><a class="h2" href="#s11">疑問・確認したい点</a></nav><main><h1>Week1-6: Direct Connect の冗長構成</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Resiliency Toolkit の3モデル</a><a class="h2" href="#s1">障害時の切り替え</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. ロケーション障害にも耐え、SLA 99.99% を目指したい。どの構成？</a><a class="h3" href="#s5">Q2. 専用線が切れても業務を止めたくないが、コストは抑えたい。どうする？</a><a class="h3" href="#s6">Q3. リンク障害の検知を速くしたい。BGP タイマーを短くする以外の方法は？</a><a class="h3" href="#s7">Q4. 帯域を増やしたい。LAG は冗長化の手段になる？</a><a class="h3" href="#s8">Q5. 1本の DX で複数リージョンの VPC や多数の VPC に到達し、DX ロケーション間で拠点同士も直接つなぎたい。使う機能は？</a><a class="h3" href="#s9">Q6. 数値確認。BGP の既定タイマーは？ 障害時の切り替えを急ぎで、すぐ（数分〜）回線が必要なときは？</a><a class="h2" href="#s10">注意（ドキュメント間の不一致）</a></nav><main><h1>Week1-6: Direct Connect の冗長構成</h1>
 <h2 id="s0">Resiliency Toolkit の3モデル</h2>
 <div class="tbl"><table>
 <thead>
@@ -114,6 +114,4 @@ LAG は同一ロケーション・同一速度の接続を束ねて帯域を増�
 <ul>
 <li>DX Gateway あたりの TGW 数は <strong>6</strong>（調整不可）。DX クォータ表・TGW クォータ表・re:Post のナレッジセンター 2 件が一致しており、「最大 3」とする re:Post の VIF 解説の記述は他と食い違う（3 は誤りと判断）</li>
 </ul>
-<h2 id="s11">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

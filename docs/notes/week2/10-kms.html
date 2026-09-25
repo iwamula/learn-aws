@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">マルチリージョンキー</a><a class="h2" href="#s1">キーポリシーとクロスアカウント</a><a class="h2" href="#s2">リージョン間コピー時の暗号化（サービス別）</a><a class="h2" href="#s3">キーのローテーション</a><a class="h2" href="#s4">判断ポイント</a><a class="h2" href="#s5">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s6">Q1. 複数リージョンでキーマテリアルを共通にし、再暗号化やリージョン間の KMS 呼び出しなしで復号したい。どうする？</a><a class="h3" href="#s7">Q2. 既存のシングルリージョンキーをマルチリージョンキーにしたい。どうする？</a><a class="h3" href="#s8">Q3. 別アカウントのユーザーに自アカウントの KMS キーを使わせたい。何が必要？</a><a class="h3" href="#s9">Q4. IAM ポリシーでキーへのアクセスを許可したのに AccessDenied になる。原因の候補は？</a><a class="h3" href="#s10">Q5. S3 CRR で SSE-KMS のオブジェクトも複製したい。どうする？</a><a class="h3" href="#s11">Q6. KMS キーを自動ローテーションした。既存データの再暗号化は必要？非対称キーはどうローテーションする？</a><a class="h2" href="#s12">未確認</a><a class="h2" href="#s13">疑問・確認したい点</a></nav><main><h1>Week2-10: KMS（マルチリージョンキー、クロスアカウント、リージョン間コピーの暗号化）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">マルチリージョンキー</a><a class="h2" href="#s1">キーポリシーとクロスアカウント</a><a class="h2" href="#s2">リージョン間コピー時の暗号化（サービス別）</a><a class="h2" href="#s3">キーのローテーション</a><a class="h2" href="#s4">判断ポイント</a><a class="h2" href="#s5">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s6">Q1. 複数リージョンでキーマテリアルを共通にし、再暗号化やリージョン間の KMS 呼び出しなしで復号したい。どうする？</a><a class="h3" href="#s7">Q2. 既存のシングルリージョンキーをマルチリージョンキーにしたい。どうする？</a><a class="h3" href="#s8">Q3. 別アカウントのユーザーに自アカウントの KMS キーを使わせたい。何が必要？</a><a class="h3" href="#s9">Q4. IAM ポリシーでキーへのアクセスを許可したのに AccessDenied になる。原因の候補は？</a><a class="h3" href="#s10">Q5. S3 CRR で SSE-KMS のオブジェクトも複製したい。どうする？</a><a class="h3" href="#s11">Q6. KMS キーを自動ローテーションした。既存データの再暗号化は必要？非対称キーはどうローテーションする？</a><a class="h2" href="#s12">未確認</a></nav><main><h1>Week2-10: KMS（マルチリージョンキー、クロスアカウント、リージョン間コピーの暗号化）</h1>
 <p>出典（2026-09-25 に原文を curl で確認）: KMS Developer Guide「Multi-Region keys in AWS KMS」「Default key policy」「Allowing users in other accounts to use a KMS key」「Rotate AWS KMS keys」、S3 User Guide「Replicating encrypted objects (SSE-S3, SSE-KMS, DSSE-KMS, SSE-C)」、EBS User Guide「Copy an Amazon EBS snapshot」、RDS User Guide「Copying a DB snapshot」。DR・データ層の文脈は 08・09 ノート</p>
 <h2 id="s0">マルチリージョンキー</h2>
 <ul>
@@ -141,6 +141,4 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>DynamoDB グローバルテーブルのレプリカごとの KMS キーの扱い</li>
 <li>KMS の同一リージョン内のリクエストクォータ（S3 の大量レプリケーションでのスロットリング）</li>
 </ul>
-<h2 id="s13">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

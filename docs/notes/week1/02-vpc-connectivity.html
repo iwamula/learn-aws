@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選択肢の比較</a><a class="h2" href="#s1">判断ポイント</a><a class="h2" href="#s2">Direct Connect の構成</a><a class="h2" href="#s3">セキュリティグループ / NACL</a><a class="h2" href="#s4">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s5">Q1. CIDR が重複している複数の VPC やパートナー企業に、特定のサービスだけを公開したい。どうする？</a><a class="h3" href="#s6">Q2. VPC A-B、B-C をピアリングした。A から C へ通信できる？</a><a class="h3" href="#s7">Q3. VPC 内の EC2 から S3 へのアクセスをインターネットに出さず、コストもかけたくない。どうする？</a><a class="h3" href="#s8">Q4. VPC からのアウトバウンド通信を、サードパーティのアプライアンスで透過的に検査したい。どうする？</a><a class="h3" href="#s9">Q5. 数十の VPC とオンプレを Direct Connect 1 本でまとめて接続したい。どの VIF と構成？</a><a class="h3" href="#s10">Q6. 数値確認。Site-to-Site VPN の標準トンネルの最大帯域は？ 5Gbps の Large Bandwidth Tunnel はどこに接続できる？</a><a class="h2" href="#s11">疑問・確認したい点</a></nav><main><h1>Week1-2: VPC 間・VPC 外の接続（Peering / TGW / PrivateLink / Endpoint）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選択肢の比較</a><a class="h2" href="#s1">判断ポイント</a><a class="h2" href="#s2">Direct Connect の構成</a><a class="h2" href="#s3">セキュリティグループ / NACL</a><a class="h2" href="#s4">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s5">Q1. CIDR が重複している複数の VPC やパートナー企業に、特定のサービスだけを公開したい。どうする？</a><a class="h3" href="#s6">Q2. VPC A-B、B-C をピアリングした。A から C へ通信できる？</a><a class="h3" href="#s7">Q3. VPC 内の EC2 から S3 へのアクセスをインターネットに出さず、コストもかけたくない。どうする？</a><a class="h3" href="#s8">Q4. VPC からのアウトバウンド通信を、サードパーティのアプライアンスで透過的に検査したい。どうする？</a><a class="h3" href="#s9">Q5. 数十の VPC とオンプレを Direct Connect 1 本でまとめて接続したい。どの VIF と構成？</a><a class="h3" href="#s10">Q6. 数値確認。Site-to-Site VPN の標準トンネルの最大帯域は？ 5Gbps の Large Bandwidth Tunnel はどこに接続できる？</a></nav><main><h1>Week1-2: VPC 間・VPC 外の接続（Peering / TGW / PrivateLink / Endpoint）</h1>
 <h2 id="s0">選択肢の比較</h2>
 <div class="tbl"><table>
 <thead>
@@ -122,6 +122,4 @@ Transit VIF + Direct Connect Gateway + Transit Gateway。Private VIF は1つの 
 標準は1トンネル最大 1.25Gbps。Large Bandwidth Tunnel は最大 5Gbps だが、TGW / Cloud WAN 接続のみ。TGW に終端すれば ECMP で複数トンネルの帯域を束ねることもできる。
 </details>
 
-<h2 id="s11">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

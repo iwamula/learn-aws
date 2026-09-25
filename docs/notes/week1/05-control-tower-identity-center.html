@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Control Tower（マルチアカウントの土台を自動構築）</a><a class="h2" href="#s1">IAM Identity Center（ワークフォースの SSO）</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. CloudFormation でのデプロイ前に、非準拠のリソースを止めたい。どうする？</a><a class="h3" href="#s5">Q2. 全アカウントの監査ログを1か所に集約し、セキュリティチームには全アカウントを参照させたい。Control Tower ではどう構成される？</a><a class="h3" href="#s6">Q3. 既存の Okta/Entra ID で、多数の AWS アカウントに SSO させ、ユーザー/グループも自動で同期したい。どうする？</a><a class="h3" href="#s7">Q4. オンプレ AD のユーザーで AWS にログインさせたい。接続方法と注意点は？</a><a class="h3" href="#s8">Q5. 管理アカウントへ触る人を減らしつつ、Identity Center の管理を任せたい。どうする？</a><a class="h3" href="#s9">Q6. 顧客向けアプリのユーザー認証に Identity Center は使える？ 管理アカウントでコントロールが拒否する操作はどうなる？</a><a class="h2" href="#s10">疑問・確認したい点</a></nav><main><h1>Week1-5: Control Tower と IAM Identity Center</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Control Tower（マルチアカウントの土台を自動構築）</a><a class="h2" href="#s1">IAM Identity Center（ワークフォースの SSO）</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. CloudFormation でのデプロイ前に、非準拠のリソースを止めたい。どうする？</a><a class="h3" href="#s5">Q2. 全アカウントの監査ログを1か所に集約し、セキュリティチームには全アカウントを参照させたい。Control Tower ではどう構成される？</a><a class="h3" href="#s6">Q3. 既存の Okta/Entra ID で、多数の AWS アカウントに SSO させ、ユーザー/グループも自動で同期したい。どうする？</a><a class="h3" href="#s7">Q4. オンプレ AD のユーザーで AWS にログインさせたい。接続方法と注意点は？</a><a class="h3" href="#s8">Q5. 管理アカウントへ触る人を減らしつつ、Identity Center の管理を任せたい。どうする？</a><a class="h3" href="#s9">Q6. 顧客向けアプリのユーザー認証に Identity Center は使える？ 管理アカウントでコントロールが拒否する操作はどうなる？</a></nav><main><h1>Week1-5: Control Tower と IAM Identity Center</h1>
 <h2 id="s0">Control Tower（マルチアカウントの土台を自動構築）</h2>
 <ul>
 <li>Organizations / CloudFormation StackSets / Config / CloudTrail / IAM Identity Center などを束ねて<strong>ランディングゾーン</strong>を作る。OU 単位でコントロール（旧ガードレール）を適用する</li>
@@ -120,7 +120,4 @@ Identity Center の ID ソースに AD を選ぶ。AWS Managed Microsoft AD ま�
 <details><summary>答え</summary>
 Identity Center はワークフォース向けなので、顧客向けアプリの認証は Cognito を使う。管理アカウントの root と管理者は、コントロールが拒否する操作も実行できる（意図的な例外で、SCP が管理アカウントに効かないのと同じ発想）。
 </details>
-
-<h2 id="s10">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

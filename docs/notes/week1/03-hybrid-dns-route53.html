@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Route 53 の基本</a><a class="h2" href="#s1">ハイブリッド DNS: Route 53 Resolver（現行ドキュメントでは「Route 53 VPC Resolver」に改称）</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. オンプレの端末から、AWS 上の EC2 のプライベートDNS名を引きたい。どうする？</a><a class="h3" href="#s5">Q2. VPC の EC2 からオンプレ AD のドメイン（corp.example.com）を名前解決したい。どうする？</a><a class="h3" href="#s6">Q3. 多数のアカウントの VPC に同じ転送ルールを配りたい。どうする？</a><a class="h3" href="#s7">Q4. 別アカウントの VPC をプライベートホストゾーン (PHZ) に関連付けたい。何が必要？</a><a class="h3" href="#s8">Q5. プライベートなリソース（インターネットから到達できない）の Route 53 フェイルオーバー用ヘルスチェックはどうする？</a><a class="h3" href="#s9">Q6. ゾーン頂点（example.com）で CloudFront や ELB を指したい。CNAME は使える？</a><a class="h2" href="#s10">疑問・確認したい点</a></nav><main><h1>Week1-3: ハイブリッド DNS と Route 53</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Route 53 の基本</a><a class="h2" href="#s1">ハイブリッド DNS: Route 53 Resolver（現行ドキュメントでは「Route 53 VPC Resolver」に改称）</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. オンプレの端末から、AWS 上の EC2 のプライベートDNS名を引きたい。どうする？</a><a class="h3" href="#s5">Q2. VPC の EC2 からオンプレ AD のドメイン（corp.example.com）を名前解決したい。どうする？</a><a class="h3" href="#s6">Q3. 多数のアカウントの VPC に同じ転送ルールを配りたい。どうする？</a><a class="h3" href="#s7">Q4. 別アカウントの VPC をプライベートホストゾーン (PHZ) に関連付けたい。何が必要？</a><a class="h3" href="#s8">Q5. プライベートなリソース（インターネットから到達できない）の Route 53 フェイルオーバー用ヘルスチェックはどうする？</a><a class="h3" href="#s9">Q6. ゾーン頂点（example.com）で CloudFront や ELB を指したい。CNAME は使える？</a></nav><main><h1>Week1-3: ハイブリッド DNS と Route 53</h1>
 <h2 id="s0">Route 53 の基本</h2>
 <ul>
 <li><strong>ルーティングポリシー</strong>: シンプル / 加重 / レイテンシー / フェイルオーバー / 位置情報 / 地理的近接（バイアス指定可）/ IPベース / 複数値応答</li>
@@ -85,7 +85,4 @@ Route 53 のヘルスチェックはプライベートなリソースを直接�
 <details><summary>答え</summary>
 CNAME は頂点に置けない。Alias レコードを使う（クエリ課金なし）。
 </details>
-
-<h2 id="s10">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

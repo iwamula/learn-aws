@@ -278,3 +278,57 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 20: On-demand Advantage の条件 | ✅ アカウント単位、最低 25 MiB/秒の取り込み・取得を約束（不足分は割引単価で課金）、有効化後 24 時間は無効化不可、Standard へ戻す前にウォームスループット削除が必要。ストリームごとの固定料金なし、取り込み・取得・延長保持は Standard より 60% 以上低い |
 | 20: オンデマンド vs プロビジョニングの判断 | ✅ 原文でオンデマンドは予測不能・変動大、プロビジョニングは予測可能なトラフィック向け。ノートの「料金は未確認」注記を更新 |
 | 20: Kinesis の具体的な単価 | 未確認（Developer Guide に金額なし。料金ページは今回未取得。aws-mcp は権限未付与で使えず） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第5弾: SQS の上限）
+根拠: 公式ドキュメント原文（curl）— SQS Developer Guide「Quotas」（quotas-queues.html、quotas-fifo.html、quotas-messages.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: SQS の In-flight 上限 | ✅ 標準は約 120,000（トラフィック・バックログ依存）、FIFO は 120,000。標準のショートポーリングで超過すると OverLimit、ロングポーリングはエラーなし。FIFO は超過してもエラーなしだが処理に影響しうる。Support で引き上げ可 |
+| 17: SQS のメッセージサイズ・保持・可視性タイムアウト | ➕ 1 バイト〜1 MiB（超過は Extended Client Library）、保持は既定 4 日・60 秒〜14 日、可視性タイムアウトは既定 30 秒・0〜12 時間、ロングポーリング最大 20 秒 |
+| 17: SQS のその他（Lambda 連携、DLQ リドライブ、暗号化など）、SNS / EventBridge の上限比較 | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第6弾: SQS の DLQ とリドライブ）
+根拠: 公式ドキュメント原文（curl / Python）— SQS Developer Guide「Using dead-letter queues in Amazon SQS」（sqs-dead-letter-queues.html）、「Learn how to configure a dead-letter queue redrive」（sqs-configure-dead-letter-queue-redrive.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: DLQ の期限は元のエンキュー時刻基準 | ⚠️ 標準キューのみ正しい。FIFO は DLQ へ移動するとエンキュー時刻がリセットされる。ノート 17 を訂正。DLQ は同一アカウント・同一リージョン（➕） |
+| 17: DLQ リドライブ | ✅ 既定は元のキュー、同種なら任意のキューへ。StartMessageMoveTask / ListMessageMoveTasks / CancelMessageMoveTask（キャンセルは RUNNING のみ）。最大 500 メッセージ/秒、フィルタ・変更不可、最大 36 時間、アクティブなタスク 100/アカウント。戻したメッセージは新しい messageID・enqueueTime で保持期間リセット |
+| 17: redrive policy / redrive allow policy | ➕ maxReceiveCount、allow policy は既定全許可・byQueue 最大 10・denyAll |
+| 17: SQS の Lambda イベントソースマッピング連携、FIFO ハイスループットの数値、暗号化、クロスアカウント | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第7弾: SQS と Lambda のイベントソースマッピング）
+根拠: 公式ドキュメント原文（curl）— Lambda Developer Guide「Using Lambda with Amazon SQS」（with-sqs.html）、「Configuring queues and event source mappings for SQS」（services-sqs-configure.html）、「Handling errors for an SQS event source」（services-sqs-errorhandling.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: バッチサイズ・バッチウィンドウ | ✅ 標準は最大 10,000、FIFO は最大 10。10 超はウィンドウ 1 秒以上が必須。ウィンドウは標準キューのみ |
+| 17: 可視性タイムアウトとの関係 | ✅ 関数タイムアウト ≦ 可視性タイムアウト（超過は ESM 作成・更新でエラー）。推奨は関数タイムアウトの 6 倍（＋バッチウィンドウ） |
+| 17: 部分バッチ応答 | ✅ ReportBatchItemFailures と batchItemFailures。例外はバッチ全体の失敗。FIFO は最初の失敗で停止し、失敗分と未処理分をすべて返す |
+| 17: 最大同時実行 | ✅ イベントソース単位で制限可、プロビジョンドモードとは併用不可。予約同時実行を設定する場合は最低 5 を推奨（理由の続きは未確認） |
+| 17: プロビジョンドモードのポーラー数上限 | ⚠️ 原文が 2 ページで食い違い（configure ページは最大 2〜2,000、with-sqs ページは 2〜10,000）。数値は未確定としてノートに記載 |
+| 17: Lambda 連携の DLQ の設定場所 | 未確認（今回の原文抜粋では確認せず） |
+| 17: FIFO ハイスループットの数値、暗号化、クロスアカウント | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第8弾: SQS FIFO ハイスループット）
+根拠: 公式ドキュメント原文（curl）— SQS Developer Guide「High throughput for FIFO queues」（high-throughput-fifo.html）、「Enabling high throughput for FIFO queues」（enable-high-throughput-fifo.html）、「Amazon SQS message quotas」（quotas-messages.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: 通常 FIFO は 300 TPS/API、バッチで 3,000 メッセージ/秒 | ✅ 原文どおり（3,000 は 300 コール × 10 件） |
+| 17: ハイスループットの上限数値 | ✅ バッチなし TPS / バッチありメッセージ/秒: 米国東部（バージニア北部）・米国西部（オレゴン）・欧州（アイルランド）70,000 / 700,000、米国東部（オハイオ）・欧州（フランクフルト）19,000 / 190,000、東京・欧州（スペイン）9,000 / 90,000、その他 2,400 / 24,000 |
+| 17: 有効化の条件 | ➕ 重複排除スコープ＝メッセージグループ、FIFO スループット上限＝メッセージグループ ID 単位が必須。変更すると通常スループットに戻る。各パーティションは 3,000（バッチ）/300 メッセージ/秒、パーティションは自動管理、上げるにはメッセージグループ数を増やす |
+| 17: SQS の暗号化（SSE-SQS / SSE-KMS）、クロスアカウント、拡張クライアント、SNS / EventBridge の上限比較 | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第9弾: SQS の暗号化 SSE）
+根拠: 公式ドキュメント原文（curl / Python）— SQS Developer Guide「Encryption at rest in Amazon SQS」（sqs-server-side-encryption.html）、「Amazon SQS Key management」（sqs-key-management.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: SSE-SQS / SSE-KMS の暗号化範囲 | ✅ 本文のみ。キュー名・属性、メッセージのメタデータ、キュー単位メトリクスは対象外。HTTPS と SigV4 必須、匿名リクエストは拒否 |
+| 17: 有効化前のメッセージ・DLQ 移動時の暗号化 | ➕ 有効化後に送信したメッセージのみ暗号化（バックログは非暗号化）。DLQ 移動で暗号化状態は変わらない |
+| 17: AWS マネージドキー（alias/aws/sqs）の制約 | ➕ キーポリシー変更不可。暗号化キューは別アカウントの Lambda を呼び出せない（カスタマー管理キーが必要） |
+| 17: KMS 権限 | ➕ プロデューサーは kms:Decrypt + kms:GenerateDataKey、コンシューマーは kms:Decrypt。S3 / EventBridge / SNS からは、カスタマー管理キーのキーポリシーでサービスプリンシパルを許可 |
+| 17: データキー再利用期間 | ✅ 60 秒〜24 時間、既定 5 分。KMS 呼び出し数 R = (B/D) × (2P + C)。エンベロープ暗号化 |
+| 17: SSE-SQS の既定有効化・料金、キューポリシーによるクロスアカウント、拡張クライアント、SNS / EventBridge の上限比較 | 未確認（今回の原文では確認せず） |

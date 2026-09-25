@@ -37,9 +37,8 @@
 
 - [x] notes/ の md を HTML に変換するスクリプト（2026-09-26）— `npm run build:html`（`scripts/build-html.mjs`、marked、出力は gitignore 済みの `docs/`）。md が正本で、変換に AI トークンは不要。`--watch` 対応。新規ノートを追加したら再実行するだけ
 
-- [ ] 08〜20 に残る個別の未確認項目の裏取り（優先度低）。第1弾（終了保護、ODCR、S3 最小期間・Intelligent-Tiering、GuardDuty EC2、ACM エクスポート、Lambda@Edge リージョン、OAC と S3 ウェブサイト、WAF geo）は 2026-09-26 完了。第2弾: Aurora Global 昇格（原文は「通常数分」で、ノート 08/09 を訂正、2026-09-26）。第3弾: CloudTrail ネットワークアクティビティイベント（2026-09-26、ノート 13 に反映）。第4弾: Kinesis のモード切り替え制約・Advantage 条件（2026-09-26、ノート 20 に反映。具体的な単価は未確認）。残り: SQS/SNS/EventBridge 上限比較、CloudFront 静的 IP など（`other/fact-check-log.md` 末尾参照）
+- [ ] 08〜20 に残る個別の未確認項目の裏取り（優先度低）。第1弾（終了保護、ODCR、S3 最小期間・Intelligent-Tiering、GuardDuty EC2、ACM エクスポート、Lambda@Edge リージョン、OAC と S3 ウェブサイト、WAF geo）は 2026-09-26 完了。第2弾: Aurora Global 昇格（原文は「通常数分」で、ノート 08/09 を訂正、2026-09-26）。第3弾: CloudTrail ネットワークアクティビティイベント（2026-09-26、ノート 13 に反映）。第4弾: Kinesis のモード切り替え制約・Advantage 条件（2026-09-26、ノート 20 に反映。具体的な単価は未確認）。第5弾: SQS の In-flight 上限・メッセージサイズ・可視性タイムアウト（2026-09-26、ノート 17 に反映）。第6弾: SQS の DLQ とリドライブ（2026-09-26、ノート 17 の DLQ 期限の記述を FIFO について訂正）。第7弾: SQS の Lambda イベントソースマッピング連携（2026-09-26、ノート 17 に反映。プロビジョンドモードのポーラー上限は原文が食い違い）。第8弾: SQS FIFO ハイスループットの上限数値（2026-09-26、ノート 17 に反映）。第9弾: SQS の暗号化 SSE（2026-09-26、ノート 17 に反映。SSE-SQS の既定有効化・料金は未確認）。残り: SNS/EventBridge の上限比較、SQS キューポリシーによるクロスアカウント、CloudFront 静的 IP など（`other/fact-check-log.md` 末尾参照）
 
 ## メモ
-- ユーザーは各ノートで気になった点を `Qn` としてqa/配下のファイルに書き込み、AIに事実確認させる運用（クイズ形式ではない）
 - `aws-core` プラグイン導入済みだが、aws-mcp は 2026-09-25 のセッションで接続でき、`search_documentation` が使えた（原文チャンクを返す）。docs.aws.amazon.com は curl でも取得可（ページ名が不明な場合は search_documentation でURLを探す）
 - コミットはユーザーが自分のタイミングで行う（確認不要）

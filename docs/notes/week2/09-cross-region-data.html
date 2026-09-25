@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">比較表</a><a class="h2" href="#s1">Aurora Global Database</a><a class="h2" href="#s2">DynamoDB グローバルテーブル</a><a class="h2" href="#s3">S3 レプリケーション</a><a class="h2" href="#s4">RDS クロスリージョンリードレプリカ（Aurora 以外）</a><a class="h2" href="#s5">ElastiCache Global Datastore（Valkey / Redis OSS）</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s8">Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を数分以内、レプリケーション遅延を 1 秒未満にしたい。どうする？</a><a class="h3" href="#s9">Q2. Aurora Global Database で、計画的なリージョンローテーションをデータ損失なしで行いたい。どの操作？</a><a class="h3" href="#s10">Q3. マルチリージョンで RPO ゼロ、どのレプリカでも強い整合性のある読み取りをしたい。どうする？</a><a class="h3" href="#s11">Q4. S3 のリージョン間コピーを SLA つきで 15 分以内にしたい。すでにあるオブジェクトもコピーしたい。どうする？</a><a class="h3" href="#s12">Q5. 暗号化した RDS のクロスリージョンリードレプリカを作りたい。条件は？</a><a class="h3" href="#s13">Q6. ElastiCache Global Datastore でリージョン障害が起きた。自動でフェイルオーバーされる？</a><a class="h2" href="#s14">未確認</a><a class="h2" href="#s15">疑問・確認したい点</a></nav><main><h1>Week2-9: データ層のリージョン間構成</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">比較表</a><a class="h2" href="#s1">Aurora Global Database</a><a class="h2" href="#s2">DynamoDB グローバルテーブル</a><a class="h2" href="#s3">S3 レプリケーション</a><a class="h2" href="#s4">RDS クロスリージョンリードレプリカ（Aurora 以外）</a><a class="h2" href="#s5">ElastiCache Global Datastore（Valkey / Redis OSS）</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s8">Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を数分以内、レプリケーション遅延を 1 秒未満にしたい。どうする？</a><a class="h3" href="#s9">Q2. Aurora Global Database で、計画的なリージョンローテーションをデータ損失なしで行いたい。どの操作？</a><a class="h3" href="#s10">Q3. マルチリージョンで RPO ゼロ、どのレプリカでも強い整合性のある読み取りをしたい。どうする？</a><a class="h3" href="#s11">Q4. S3 のリージョン間コピーを SLA つきで 15 分以内にしたい。すでにあるオブジェクトもコピーしたい。どうする？</a><a class="h3" href="#s12">Q5. 暗号化した RDS のクロスリージョンリードレプリカを作りたい。条件は？</a><a class="h3" href="#s13">Q6. ElastiCache Global Datastore でリージョン障害が起きた。自動でフェイルオーバーされる？</a><a class="h2" href="#s14">未確認</a></nav><main><h1>Week2-9: データ層のリージョン間構成</h1>
 <p>出典（2026-09-25 に原文を curl で確認）: Aurora User Guide「Using Amazon Aurora Global Database」、DynamoDB Developer Guide「Global tables」「How DynamoDB global tables work」、S3 User Guide「Replicating objects」「What does Amazon S3 replicate?」「Requirements and considerations for replication」、RDS User Guide「Cross-Region read replicas」、ElastiCache User Guide「Replication across AWS Regions using global datastores」。DR の位置づけは 08 ノート</p>
 <h2 id="s0">比較表</h2>
 <div class="tbl"><table>
@@ -183,6 +183,4 @@ CRR + S3 RTC（99.99% を 15 分以内）。既存オブジェクトは S3 Batch
 <li>S3 のクロスアカウントレプリケーションの所有者上書き設定</li>
 <li>DynamoDB MRSC の対応リージョン一覧（原文は限定リージョンとだけ確認）</li>
 </ul>
-<h2 id="s15">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

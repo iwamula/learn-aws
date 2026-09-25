@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">まず「何の災害か」で分ける</a><a class="h2" href="#s1">4パターン（コストと複雑さは上から下に増え、復旧時間は短くなる）</a><a class="h2" href="#s2">各パターンで使うサービス</a><a class="h2" href="#s3">書き込み戦略（Active/Active）</a><a class="h2" href="#s4">フェイルオーバーとトラフィック制御</a><a class="h2" href="#s5">AWS Elastic Disaster Recovery（DRS）</a><a class="h2" href="#s6">その他</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s9">Q1. リージョン障害に備えた DR で、DR リージョンには DB を常時レプリケーションし、アプリサーバーは障害時に起動したい。コストは抑えたい。どのパターン？</a><a class="h3" href="#s10">Q2. 縮小版でも障害時に即座にリクエストを処理でき、あとはスケールアップだけで済む DR にしたい。どうする？</a><a class="h3" href="#s11">Q3. リージョン障害時、コントロールプレーンが使えなくても確実にフェイルオーバーしたい。どの方法を選ぶ？</a><a class="h3" href="#s12">Q4. S3 を CRR で DR リージョンに複製している。ソース側で悪意ある削除をされても DR 側を守りたい。どうする？</a><a class="h3" href="#s13">Q5. オンプレミスのサーバーを丸ごと低コストで AWS に DR したい。どうする？</a><a class="h3" href="#s14">Q6. Active/Active 構成なら RPO は 0 になる？</a><a class="h2" href="#s15">未確認</a><a class="h2" href="#s16">疑問・確認したい点</a></nav><main><h1>Week2-8: Multi-AZ / Multi-Region と DR 4パターン</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">まず「何の災害か」で分ける</a><a class="h2" href="#s1">4パターン（コストと複雑さは上から下に増え、復旧時間は短くなる）</a><a class="h2" href="#s2">各パターンで使うサービス</a><a class="h2" href="#s3">書き込み戦略（Active/Active）</a><a class="h2" href="#s4">フェイルオーバーとトラフィック制御</a><a class="h2" href="#s5">AWS Elastic Disaster Recovery（DRS）</a><a class="h2" href="#s6">その他</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s9">Q1. リージョン障害に備えた DR で、DR リージョンには DB を常時レプリケーションし、アプリサーバーは障害時に起動したい。コストは抑えたい。どのパターン？</a><a class="h3" href="#s10">Q2. 縮小版でも障害時に即座にリクエストを処理でき、あとはスケールアップだけで済む DR にしたい。どうする？</a><a class="h3" href="#s11">Q3. リージョン障害時、コントロールプレーンが使えなくても確実にフェイルオーバーしたい。どの方法を選ぶ？</a><a class="h3" href="#s12">Q4. S3 を CRR で DR リージョンに複製している。ソース側で悪意ある削除をされても DR 側を守りたい。どうする？</a><a class="h3" href="#s13">Q5. オンプレミスのサーバーを丸ごと低コストで AWS に DR したい。どうする？</a><a class="h3" href="#s14">Q6. Active/Active 構成なら RPO は 0 になる？</a><a class="h2" href="#s15">未確認</a></nav><main><h1>Week2-8: Multi-AZ / Multi-Region と DR 4パターン</h1>
 <p>出典: AWS ホワイトペーパー「Disaster Recovery of Workloads on AWS」の &quot;Disaster recovery options in the cloud&quot;（2026-09-25 に原文を curl で確認）</p>
 <h2 id="s0">まず「何の災害か」で分ける</h2>
 <ul>
@@ -188,6 +188,4 @@ AWS Elastic Disaster Recovery（DRS）。ブロックレベルで継続レプリ
 <li>Route 53 フェイルオーバーレコード（Primary/Secondary、Evaluate Target Health）の詳細</li>
 <li>ARC のルーティングコントロール/準備状況チェックの詳細（コントロールプレーンのクラスターが5リージョン冗長という点など）</li>
 </ul>
-<h2 id="s16">疑問・確認したい点</h2>
-<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>
