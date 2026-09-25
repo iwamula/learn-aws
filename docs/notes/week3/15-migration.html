@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">7R（移行戦略）</a><a class="h2" href="#s2">AWS DMS（Database Migration Service）</a><a class="h2" href="#s3">スキーマ変換（SCT / DMS Schema Conversion）</a><a class="h2" href="#s4">AWS DataSync</a><a class="h2" href="#s5">AWS Snowball Edge</a><a class="h2" href="#s6">AWS Application Migration Service（MGN）</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">未確認</a><a class="h2" href="#s9">疑問・確認したい点</a></nav><main><h1>Week3-15: 移行（7R、DMS / SCT、DataSync、Snow、MGN）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">7R（移行戦略）</a><a class="h2" href="#s2">AWS DMS（Database Migration Service）</a><a class="h2" href="#s3">スキーマ変換（SCT / DMS Schema Conversion）</a><a class="h2" href="#s4">AWS DataSync</a><a class="h2" href="#s5">AWS Snowball Edge</a><a class="h2" href="#s6">AWS Application Migration Service（MGN）</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s9">Q1. オンプレの物理・仮想サーバーをアプリ変更なしで、ダウンタイム最小で EC2 に移したい。どうする？</a><a class="h3" href="#s10">Q2. オンプレの Oracle を Aurora PostgreSQL へ移行し、切り替え直前まで変更を反映したい。どうする？</a><a class="h3" href="#s11">Q3. オンプレの PostgreSQL を RDS / Aurora PostgreSQL へ移行したい（同じエンジン）。どうする？</a><a class="h3" href="#s12">Q4. データセンター A のオンプレ DB からデータセンター B のオンプレ DB へ DMS で移行できる？</a><a class="h3" href="#s13">Q5. オンプレの NFS / SMB のファイルを S3 / EFS / FSx に継続的に同期したい。どうする？また同一アカウントの AWS ストレージ間ならエージェントは必要？</a><a class="h3" href="#s14">Q6. VPC・アカウント・リージョン間で移動したい。7R のどれ？また、最も複雑でコストが高い戦略は？</a><a class="h2" href="#s15">未確認</a><a class="h2" href="#s16">疑問・確認したい点</a></nav><main><h1>Week3-15: 移行（7R、DMS / SCT、DataSync、Snow、MGN）</h1>
 <p>出典（2026-09-26 に原文を curl で確認）: Prescriptive Guidance「About the migration strategies」、DMS User Guide「What is AWS DMS?」「Getting started」「Working with AWS DMS tasks」「Creating tasks for ongoing replication」「Homogeneous data migrations」、Schema Conversion Tool User Guide「What is AWS SCT?」、DataSync User Guide「What is DataSync?」「How DataSync works」、Snowball Edge Developer Guide「What is Snowball Edge?」、Application Migration Service User Guide「What is Application Migration Service?」</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -180,7 +180,38 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「VPC・アカウント・リージョン間で RDS を移す」→ <strong>Relocate</strong></li>
 <li>「大規模移行で最初に何をするか」→ Rehost / Relocate / Replatform / Retire を優先し、<strong>移行後にモダナイズ</strong></li>
 </ul>
-<h2 id="s8">未確認</h2>
+<h2 id="s8">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s9">Q1. オンプレの物理・仮想サーバーをアプリ変更なしで、ダウンタイム最小で EC2 に移したい。どうする？</h3>
+<details><summary>答え</summary>
+Rehost（lift and shift）を MGN で行う。継続的なブロックレベルレプリケーションで、切り替え（cutover）は通常数分。
+</details>
+
+<h3 id="s10">Q2. オンプレの Oracle を Aurora PostgreSQL へ移行し、切り替え直前まで変更を反映したい。どうする？</h3>
+<details><summary>答え</summary>
+スキーマ変換（DMS Schema Conversion / SCT）でスキーマを変換し、DMS のフルロード + CDC でデータを移行する。DMS 自体はスキーマ変換をしない。
+</details>
+
+<h3 id="s11">Q3. オンプレの PostgreSQL を RDS / Aurora PostgreSQL へ移行したい（同じエンジン）。どうする？</h3>
+<details><summary>答え</summary>
+DMS の同種データ移行（サーバーレス、ネイティブツールでダンプ / 復元）。同種のため SCT は不要（原文に明記されているのは MySQL → Aurora MySQL の例）。
+</details>
+
+<h3 id="s12">Q4. データセンター A のオンプレ DB からデータセンター B のオンプレ DB へ DMS で移行できる？</h3>
+<details><summary>答え</summary>
+できない。DMS はソースとターゲットのどちらか一方が AWS サービス上にある必要がある。
+</details>
+
+<h3 id="s13">Q5. オンプレの NFS / SMB のファイルを S3 / EFS / FSx に継続的に同期したい。どうする？また同一アカウントの AWS ストレージ間ならエージェントは必要？</h3>
+<details><summary>答え</summary>
+DataSync を使う。オンプレ側はエージェント（VM アプライアンス）を配置する。同一アカウントの AWS ストレージサービス間（リージョンをまたぐ場合を含む）はエージェント不要。
+</details>
+
+<h3 id="s14">Q6. VPC・アカウント・リージョン間で移動したい。7R のどれ？また、最も複雑でコストが高い戦略は？</h3>
+<details><summary>答え</summary>
+Relocate（新規ハードウェアもアプリ書き換えも不要で最速）。最も複雑でコストが高いのは Refactor / Re-architect で、大規模移行では推奨されない（まず rehost / relocate / replatform で移し、移行後にモダナイズ）。
+</details>
+
+<h2 id="s15">未確認</h2>
 <ul>
 <li><strong>DMS</strong>: レプリケーションインスタンスの Multi-AZ、<strong>DMS Serverless</strong>（従来型との違い）、検証（データ検証機能）、LOB の扱い、ソース / ターゲット DB ごとの CDC 要件、<strong>フルロードの並列・大規模テーブルの分割</strong>、<strong>DMS Fleet Advisor</strong>、<strong>Kinesis / Kafka / S3 / Redshift へのターゲット出力</strong></li>
 <li><strong>SCT / DMS Schema Conversion</strong>: DMS Schema Conversion の対応エンジンと SCT との機能差、変換できない項目の評価レポート、<strong>SCT のデータ抽出エージェント（Snowball 経由の DWH 移行）</strong></li>
@@ -189,5 +220,5 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>MGN</strong>: <strong>エージェントのインストール要件、レプリケーションサーバーの構成、ステージング領域のコスト、cutover の詳細、ネットワーク要件（TCP 1500 など）</strong>、<strong>VMware 環境向けのエージェントレスレプリケーション</strong></li>
 <li><strong>その他の移行サービス</strong>: <strong>AWS Transfer Family</strong>、<strong>Migration Hub / Application Discovery Service / Migration Evaluator</strong>、<strong>AWS Transform（メインフレーム / .NET / VMware）</strong>、<strong>Mainframe Modernization</strong>、<strong>App2Container</strong>、<strong>VMware Cloud on AWS / Amazon EVS</strong>、<strong>Server Migration Service（終了済み）</strong>、<strong>CloudEndure</strong>、<strong>VM Import/Export</strong>、<strong>DMS を使わない DB 移行（ネイティブのバックアップ、Aurora リードレプリカ）</strong>、<strong>ポートフォリオ評価・移行計画（MAP、Migration Acceleration Program）</strong></li>
 </ul>
-<h2 id="s9">疑問・確認したい点</h2>
+<h2 id="s16">疑問・確認したい点</h2>
 </main></body></html>

@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">SQS</a><a class="h2" href="#s2">SNS</a><a class="h2" href="#s3">EventBridge</a><a class="h2" href="#s4">Step Functions</a><a class="h2" href="#s5">API Gateway</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">未確認</a><a class="h2" href="#s8">疑問・確認したい点</a></nav><main><h1>Week4-17: SQS / SNS / EventBridge / Step Functions / API Gateway（メッセージングと疎結合）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">SQS</a><a class="h2" href="#s2">SNS</a><a class="h2" href="#s3">EventBridge</a><a class="h2" href="#s4">Step Functions</a><a class="h2" href="#s5">API Gateway</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s8">Q1. 注文処理で順序を保持し、重複も許したくない。スループットは標準キューより低くてよい。どうする？</a><a class="h3" href="#s9">Q2. 1 つのイベントを在庫・配送・分析の 3 システムへ、それぞれ独立したペースで処理したい。どうする？</a><a class="h3" href="#s10">Q3. SNS FIFO トピックからメールと HTTP エンドポイントへ配信したい。可能？</a><a class="h3" href="#s11">Q4. SQS の処理に時間がかかり、途中で別のコンシューマーに重複処理されてしまう。どうする？ また空ポーリングのコストも下げたい。</a><a class="h3" href="#s12">Q5. 処理に失敗し続けるメッセージを隔離して調査したい。DLQ の注意点は？</a><a class="h3" href="#s13">Q6. 決済や EMR 起動を含む、数日〜数か月かかる承認フローを作りたい。一方、IoT の大量イベントを 5 分以内に変換して DynamoDB に入れる処理もある。それぞれ何を使う？</a><a class="h2" href="#s14">未確認</a><a class="h2" href="#s15">疑問・確認したい点</a></nav><main><h1>Week4-17: SQS / SNS / EventBridge / Step Functions / API Gateway（メッセージングと疎結合）</h1>
 <p>出典（2026-09-26 に aws-mcp の search_documentation と curl で原文を確認）: SQS Developer Guide「Create queue」「Amazon SQS message quotas」「Visibility timeout」「Short and long polling」「Configure a dead-letter queue」「FIFO 排他的処理」「Moving from a standard queue to a FIFO queue」「Message retention period」、SNS Developer Guide「FIFO topics のメッセージ配信 / フィルタリング」「Message filtering」「Dead-letter queues」、Step Functions Developer Guide「Choosing workflow type」「Service integration patterns」「Distributed Map」、API Gateway Developer Guide「Choose between REST APIs and HTTP APIs」「Caching」「Throttling」「Quotas」、API Gateway FAQ、EventBridge User Guide「What is EventBridge」「Archive and replay」「Pipes」、EventBridge Scheduler「What is」、re:Post「クロスアカウントターゲット」、AWS Compute Blog（EventBridge クロスリージョン、SQS Well-Architected）</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -202,7 +202,38 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「VPC 内のクライアントだけが呼べる API」→ <strong>REST API のプライベートエンドポイント</strong></li>
 <li>「同一リージョンの内部サービスからの呼び出し」→ <strong>リージョンエンドポイント</strong>（エッジ最適化は不向き）</li>
 </ul>
-<h2 id="s7">未確認</h2>
+<h2 id="s7">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s8">Q1. 注文処理で順序を保持し、重複も許したくない。スループットは標準キューより低くてよい。どうする？</h3>
+<details><summary>答え</summary>
+SQS FIFO キュー。メッセージグループ ID（注文 ID など細かい粒度）で順序を保ち、重複排除 ID またはコンテンツベースの重複排除を使う。バッチなしで 300 TPS / API メソッド、バッチありで 3,000 メッセージ/秒。既存の標準キューは FIFO に変換できないので作り直す。
+</details>
+
+<h3 id="s9">Q2. 1 つのイベントを在庫・配送・分析の 3 システムへ、それぞれ独立したペースで処理したい。どうする？</h3>
+<details><summary>答え</summary>
+SNS + SQS ファンアウト。1 メッセージを複数の SQS キューに配信し、各購読者が自分のペースで消費する。フィルターポリシーで振り分けもできる。
+</details>
+
+<h3 id="s10">Q3. SNS FIFO トピックからメールと HTTP エンドポイントへ配信したい。可能？</h3>
+<details><summary>答え</summary>
+不可。FIFO トピックが配信できるのは SQS のキューのみで、メール・SMS・HTTP(S) などは購読するとエラーになる。Lambda は SQS を挟んでトリガーする。
+</details>
+
+<h3 id="s11">Q4. SQS の処理に時間がかかり、途中で別のコンシューマーに重複処理されてしまう。どうする？ また空ポーリングのコストも下げたい。</h3>
+<details><summary>答え</summary>
+可視性タイムアウトを延長する（既定 30 秒、最大 12 時間。ChangeMessageVisibility でも延長できる）。空ポーリングにはロングポーリング（最大待機 20 秒）を使う。
+</details>
+
+<h3 id="s12">Q5. 処理に失敗し続けるメッセージを隔離して調査したい。DLQ の注意点は？</h3>
+<details><summary>答え</summary>
+DLQ を設定する。キュー種別は元のキューと同じにする（FIFO は FIFO、標準は標準）。期限は元のエンキュー時刻基準なので、DLQ の保持期間は元のキューより長くする。
+</details>
+
+<h3 id="s13">Q6. 決済や EMR 起動を含む、数日〜数か月かかる承認フローを作りたい。一方、IoT の大量イベントを 5 分以内に変換して DynamoDB に入れる処理もある。それぞれ何を使う？</h3>
+<details><summary>答え</summary>
+前者は Step Functions Standard（最大 1 年、exactly-once、.waitForTaskToken のコールバックが使える）。後者は Express（最大 5 分、非同期実行は at-least-once なので冪等にする）。ワークフロータイプは作成後に変更できない。
+</details>
+
+<h2 id="s14">未確認</h2>
 <ul>
 <li><strong>SQS</strong>: Lambda イベントソースマッピングとの連携（バッチ、部分バッチ失敗、最大同時実行、可視性タイムアウトとの関係）、<strong>DLQ リドライブ</strong>、FIFO の<strong>ハイスループットモードの上限数値</strong>、暗号化（SSE-SQS / SSE-KMS）、キューポリシーによるクロスアカウント、<strong>In-flight 上限</strong>、拡張クライアント</li>
 <li><strong>SNS</strong>: 配信リトライポリシー、メッセージ配信の暗号化、<strong>メッセージ保持・アーカイブ（FIFO）</strong>、SNS と EventBridge の詳細な比較、料金</li>
@@ -210,5 +241,5 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>Step Functions</strong>: <strong>Retry / Catch の記法</strong>、Map の同時実行数、Express の同期実行（API Gateway 経由）、<strong>Distributed Map の上限</strong>、Standard の開始レートやクォータの公式値（ブログの数値を採用）、<strong>Express の履歴が CloudWatch Logs になる詳細</strong></li>
 <li><strong>API Gateway</strong>: <strong>統合タイムアウト（29 秒の既定と引き上げ）</strong>、ペイロード上限、<strong>Lambda オーソライザーのキャッシュ</strong>、Cognito オーソライザー、<strong>リソースポリシーによるクロスアカウント / IP 制限</strong>、<strong>カスタムドメインと ACM（エッジ最適化は us-east-1）</strong>、<strong>ステージ変数、カナリア</strong>、<strong>HTTP API のスロットリング</strong>、CloudFront / WAF との組み合わせ、mTLS</li>
 </ul>
-<h2 id="s8">疑問・確認したい点</h2>
+<h2 id="s15">疑問・確認したい点</h2>
 </main></body></html>

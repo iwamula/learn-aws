@@ -83,6 +83,37 @@
 - 「VPC・アカウント・リージョン間で RDS を移す」→ **Relocate**
 - 「大規模移行で最初に何をするか」→ Rehost / Relocate / Replatform / Retire を優先し、**移行後にモダナイズ**
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. オンプレの物理・仮想サーバーをアプリ変更なしで、ダウンタイム最小で EC2 に移したい。どうする？
+<details><summary>答え</summary>
+Rehost（lift and shift）を MGN で行う。継続的なブロックレベルレプリケーションで、切り替え（cutover）は通常数分。
+</details>
+
+### Q2. オンプレの Oracle を Aurora PostgreSQL へ移行し、切り替え直前まで変更を反映したい。どうする？
+<details><summary>答え</summary>
+スキーマ変換（DMS Schema Conversion / SCT）でスキーマを変換し、DMS のフルロード + CDC でデータを移行する。DMS 自体はスキーマ変換をしない。
+</details>
+
+### Q3. オンプレの PostgreSQL を RDS / Aurora PostgreSQL へ移行したい（同じエンジン）。どうする？
+<details><summary>答え</summary>
+DMS の同種データ移行（サーバーレス、ネイティブツールでダンプ / 復元）。同種のため SCT は不要（原文に明記されているのは MySQL → Aurora MySQL の例）。
+</details>
+
+### Q4. データセンター A のオンプレ DB からデータセンター B のオンプレ DB へ DMS で移行できる？
+<details><summary>答え</summary>
+できない。DMS はソースとターゲットのどちらか一方が AWS サービス上にある必要がある。
+</details>
+
+### Q5. オンプレの NFS / SMB のファイルを S3 / EFS / FSx に継続的に同期したい。どうする？また同一アカウントの AWS ストレージ間ならエージェントは必要？
+<details><summary>答え</summary>
+DataSync を使う。オンプレ側はエージェント（VM アプライアンス）を配置する。同一アカウントの AWS ストレージサービス間（リージョンをまたぐ場合を含む）はエージェント不要。
+</details>
+
+### Q6. VPC・アカウント・リージョン間で移動したい。7R のどれ？また、最も複雑でコストが高い戦略は？
+<details><summary>答え</summary>
+Relocate（新規ハードウェアもアプリ書き換えも不要で最速）。最も複雑でコストが高いのは Refactor / Re-architect で、大規模移行では推奨されない（まず rehost / relocate / replatform で移し、移行後にモダナイズ）。
+</details>
+
 ## 未確認
 - **DMS**: レプリケーションインスタンスの Multi-AZ、**DMS Serverless**（従来型との違い）、検証（データ検証機能）、LOB の扱い、ソース / ターゲット DB ごとの CDC 要件、**フルロードの並列・大規模テーブルの分割**、**DMS Fleet Advisor**、**Kinesis / Kafka / S3 / Redshift へのターゲット出力**
 - **SCT / DMS Schema Conversion**: DMS Schema Conversion の対応エンジンと SCT との機能差、変換できない項目の評価レポート、**SCT のデータ抽出エージェント（Snowball 経由の DWH 移行）**

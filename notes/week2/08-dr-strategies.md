@@ -73,6 +73,37 @@
 - 「Aurora で 1 分未満の昇格、リージョン障害対応」→ Aurora Global Database（RDS リードレプリカは数分）
 - 「同時書き込みを許容するマルチリージョン」→ DynamoDB グローバルテーブル（last writer wins）
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. リージョン障害に備えた DR で、DR リージョンには DB を常時レプリケーションし、アプリサーバーは障害時に起動したい。コストは抑えたい。どのパターン？
+<details><summary>答え</summary>
+Pilot Light。中核（DB）は稼働、アプリサーバーは未デプロイ・停止で、起動してスケールアウトする。このままではリクエストを処理できない点が Warm Standby との違い。
+</details>
+
+### Q2. 縮小版でも障害時に即座にリクエストを処理でき、あとはスケールアップだけで済む DR にしたい。どうする？
+<details><summary>答え</summary>
+Warm Standby。縮小版だが完全に動く環境が常時稼働している。Auto Scaling で本番容量まで拡張し、DR リージョンのサービスクォータも事前に引き上げておく。
+</details>
+
+### Q3. リージョン障害時、コントロールプレーンが使えなくても確実にフェイルオーバーしたい。どの方法を選ぶ？
+<details><summary>答え</summary>
+データプレーン操作を使う。Route 53 ヘルスチェック + DNS フェイルオーバー（自動）か、ARC のルーティングコントロール（手動）。加重ルーティングの重み変更や Global Accelerator のトラフィックダイヤルはコントロールプレーン操作なので耐障害性が低い。
+</details>
+
+### Q4. S3 を CRR で DR リージョンに複製している。ソース側で悪意ある削除をされても DR 側を守りたい。どうする？
+<details><summary>答え</summary>
+バージョニング + CRR。既定では削除マーカーはソース側にだけ付き、DR 側には複製されない。AWS Backup のクロスアカウントコピーも有効。
+</details>
+
+### Q5. オンプレミスのサーバーを丸ごと低コストで AWS に DR したい。どうする？
+<details><summary>答え</summary>
+AWS Elastic Disaster Recovery（DRS）。ブロックレベルで継続レプリケーションする Pilot Light 型。対象は EC2 上のアプリ・DB で、RDS は対象外。
+</details>
+
+### Q6. Active/Active 構成なら RPO は 0 になる？
+<details><summary>答え</summary>
+ならない。データ破損は別問題で、バックアップからの復旧が必要。レプリケーションは破損も複製する。
+</details>
+
 ## 未確認
 - 各パターンの RTO/RPO の目安（分・時間の数値）
 - Route 53 フェイルオーバーレコード（Primary/Secondary、Evaluate Target Health）の詳細

@@ -89,6 +89,37 @@
 - 「Windows のファイル共有（AD、DFS、SMB）」→ **FSx for Windows**、「HPC / 機械学習の高スループット」→ **FSx for Lustre**（S3 と連携）、「NFS + SMB + iSCSI」→ **FSx for ONTAP**
 - 「Linux の共有ファイル、複数 AZ のインスタンスから」→ **EFS**
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. オンプレから NFS / SMB で S3 にファイルを書き込み、S3 側でも直接オブジェクトとして使いたい。どうする？
+<details><summary>答え</summary>
+S3 File Gateway。S3 にオブジェクトとして保存され（ローカルキャッシュあり）、バケットポリシーも適用できる。既存のテープバックアップ運用を維持したいなら Tape Gateway、SMB 共有を FSx for Windows に置くなら FSx File Gateway。
+</details>
+
+### Q2. オンプレの iSCSI ボリュームで、全データを常にローカルに置きたい。頻繁に使うデータだけローカルに置く場合は？
+<details><summary>答え</summary>
+前者は Volume Gateway 保管型（S3 へ非同期バックアップ）。後者はキャッシュ型（主データは S3、頻繁なデータをローカルキャッシュ）。キャッシュ型は 1 GiB〜32 TiB、ゲートウェイあたり最大 32 ボリューム、合計 1,024 TiB。
+</details>
+
+### Q3. 規制で、root ユーザーでも保持期間中は削除できない WORM ストレージが必要。どうする？
+<details><summary>答え</summary>
+S3 Object Lock のコンプライアンスモード。バージョニングが有効なバケットが必須。モード変更も保持期間の短縮もできない。特定ユーザーだけ例外的に削除できるならガバナンスモード、期限なしで保全するならリーガルホールド。
+</details>
+
+### Q4. 複数リージョンのバケットに、最寄り（遅延最小）のバケットへ自動ルーティングしたい。Transfer Acceleration との違いは？
+<details><summary>答え</summary>
+Multi-Region Access Point（MRAP）に CRR を組み合わせる。Transfer Acceleration は単一バケットへの長距離転送の高速化で、MRAP は複数リージョンの複数バケットにまたがる。MRAP は内部で Global Accelerator を使うため、Transfer Acceleration の有効化は別途不要。
+</details>
+
+### Q5. 既存オブジェクトも別リージョンへ複製したい。また、複製の遅延を 15 分以内に保証したい。それぞれどうする？
+<details><summary>答え</summary>
+既存オブジェクトは S3 Batch Replication（ソースバケットにレプリケーション設定が既にあることが前提）。15 分の保証は S3 RTC（SLA は月間 99.9% を 15 分以内）。なお削除マーカーは既定では宛先に複製されない。
+</details>
+
+### Q6. HPC / 機械学習の高スループットが必要で、S3 と連携したい。Windows の AD / DFS / SMB が必要なワークロードは？ NFS + SMB + iSCSI が必要なら？
+<details><summary>答え</summary>
+順に FSx for Lustre（S3 とはデータリポジトリ関連付け DRA で連携）、FSx for Windows File Server、FSx for NetApp ONTAP。Lustre のスクラッチはデータが複製されず、障害で失われる。許容できないなら永続を選ぶ。
+</details>
+
 ## 未確認
 - **S3**: Standard-IA / One Zone-IA の最小期間・最小サイズ、**S3 Express One Zone**、Glacier の取り出しオプション（Expedited / Standard / Bulk）と料金、ライフサイクル移行の制約、**S3 Inventory / Storage Lens**、**Object Lambda**、**署名付き URL**、**バケットポリシーによる VPC エンドポイント制限**、**SSE-S3 / SSE-KMS / DSSE-KMS の詳細**、**MFA Delete**、**Multi-part upload の上限**、**Byte-range fetch**、**CRR のクロスアカウント時の所有者オーバーライド**、**Block Public Access**、**Access Points の VPC 制限**
 - **Storage Gateway**: **FSx File Gateway の今後の扱い**（原文で最新状況を要確認）、**ホスト先（オンプレ VM / EC2 / ハードウェアアプライアンス）**、**帯域制限**、**Volume Gateway の保管型の上限**、**S3 File Gateway のキャッシュ更新**（RefreshCache）、S3 ストレージクラスの選択

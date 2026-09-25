@@ -102,6 +102,37 @@
 - 「CloudFront で独自ドメインの HTTPS。証明書は ACM」→ **us-east-1 で発行**
 - 「CloudFront のオリジンフェイルオーバーで POST は？」→ **フェイルオーバーしない**（GET / HEAD / OPTIONS のみ）
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. S3 バケットを CloudFront 経由のみで公開したい。SSE-KMS も使っている。どうする？
+<details><summary>答え</summary>
+OAC（origin access control）を使う。OAC は SSE-KMS や PUT / DELETE などの動的リクエストに対応し、OAI は非推奨。前提として S3 Object Ownership は「Bucket owner enforced」（新規バケットのデフォルト）にする。
+</details>
+
+### Q2. S3 を静的ウェブサイトエンドポイントとして設定している。OAC で保護できる？
+<details><summary>答え</summary>
+できない。静的ウェブサイトエンドポイントは CloudFront のカスタムオリジン扱いになり、OAC（OAI も）は使えない。
+</details>
+
+### Q3. プライベートサブネットの ALB を、CloudFront 経由でのみ公開したい。どうする？
+<details><summary>答え</summary>
+VPC オリジンを使う。CloudFront が唯一の入口になり、オリジンをパブリックにしなくてよい。パブリックなオリジンなら、マネージドプレフィックスリスト com.amazonaws.global.cloudfront.origin-facing をセキュリティグループのインバウンドで参照して絞る。
+</details>
+
+### Q4. 有料会員が HLS 動画（多数のファイル）を視聴する。URL は変えたくない。どうする？
+<details><summary>答え</summary>
+署名付き Cookie。複数の制限ファイルへのアクセスを許可でき、URL を変えずに済む。単一ファイルのダウンロードを期限付きで共有するなら署名付き URL。署名者は信頼されたキーグループが推奨。
+</details>
+
+### Q5. 顧客のファイアウォールに静的 IP を許可してもらう必要がある HTTP アプリを、複数リージョンで高速にフェイルオーバーさせたい。どうする？
+<details><summary>答え</summary>
+Global Accelerator。IPv4 の静的 IP が 2 つ（デュアルスタックは計 4 つ）で、anycast。異常なエンドポイントから新規接続を即座に別の正常なエンドポイントへ向ける。DNS キャッシュの影響も受けない。
+</details>
+
+### Q6. CloudFront のオリジンフェイルオーバーは、POST リクエストでも動く？ 既定のプライマリ接続試行の待ち時間は？
+<details><summary>答え</summary>
+動かない。GET / HEAD / OPTIONS のときだけフェイルオーバーする。既定ではプライマリへの接続を最大 30 秒（10 秒 × 3 回）試してからセカンダリへ切り替える。接続タイムアウトは 1〜10 秒、試行回数は 1〜3 回に変更できる。
+</details>
+
 ## 未確認
 - **CloudFront**: キャッシュポリシー / オリジンリクエストポリシー / レスポンスヘッダーポリシー、TTL とキャッシュ無効化（Invalidation）の課金、料金クラス（Price Class）、**Origin Shield**、**オリジンへの HTTPS 要件とカスタムヘッダー（ALB のシークレットヘッダー方式）**、**AWS WAF との統合**（WAF 自体を Week4 で別ノートにする予定）、**Lambda@Edge のレプリケーション元リージョン（us-east-1）と併用時の制約**、オリジンフェイルオーバーと Lambda@Edge の併用の詳細、**リアルタイムログ / 標準ログ**、**mTLS / Connection Functions**、**SNI と専用 IP 独自 SSL**、**Continuous deployment（ステージングディストリビューション）**、**S3 のバケットポリシー（OAC 用）の書き方**
 - **Global Accelerator**: **料金（固定 + データ転送プレミアム）**、**ヘルスチェックの間隔・しきい値・フェイルオーバー時間の数値**、**接続の衝突（connection collisions）の詳細**、**BYOIP の要件**、**Global Accelerator と CloudFront の併用**、**フローログ**、**IPv6 の対応範囲**

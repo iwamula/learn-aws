@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">ポリシーの種類</a><a class="h2" href="#s1">評価ロジック（同一アカウント）</a><a class="h2" href="#s2">クロスアカウントの場合</a><a class="h2" href="#s3">条件キー（頻出）</a><a class="h2" href="#s4">判断ポイント</a><a class="h2" href="#s5">疑問・確認したい点</a></nav><main><h1>Week1-4: IAM ポリシー評価とクロスアカウント権限</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">ポリシーの種類</a><a class="h2" href="#s1">評価ロジック（同一アカウント）</a><a class="h2" href="#s2">クロスアカウントの場合</a><a class="h2" href="#s3">条件キー（頻出）</a><a class="h2" href="#s4">判断ポイント</a><a class="h2" href="#s5">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s6">Q1. 開発者に IAM ロールの作成を任せたいが、自分より強い権限を持つロールを作る権限昇格は防ぎたい。どうする？</a><a class="h3" href="#s7">Q2. 別アカウントの S3 バケットに、自アカウントのユーザーからアクセスさせたい。どちらの設定が必要？</a><a class="h3" href="#s8">Q3. 組織内の全アカウントからだけバケットにアクセスさせたい。アカウント ID を列挙せずに済ませるには？</a><a class="h3" href="#s9">Q4. 外部ベンダーにロールを引き受けさせたい。どうする？</a><a class="h3" href="#s10">Q5. 同一アカウントで、SCP・Permissions Boundary・アイデンティティ/リソースポリシーが混在するときの評価順序は？</a><a class="h3" href="#s11">Q6. AssumeRole すると、呼び出し元の元の権限はどうなる？ 元の権限を保ったまま別アカウントのリソースを操作するには？</a><a class="h2" href="#s12">疑問・確認したい点</a></nav><main><h1>Week1-4: IAM ポリシー評価とクロスアカウント権限</h1>
 <h2 id="s0">ポリシーの種類</h2>
 <div class="tbl"><table>
 <thead>
@@ -92,6 +92,37 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「Web/モバイルアプリのユーザーに一時的にAWSへアクセス」→ Cognito Identity Pool（ID プール）</li>
 <li>「オンプレのサーバーから」→ IAM Roles Anywhere（証明書ベース）</li>
 </ul>
-<h2 id="s5">疑問・確認したい点</h2>
+<h2 id="s5">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s6">Q1. 開発者に IAM ロールの作成を任せたいが、自分より強い権限を持つロールを作る権限昇格は防ぎたい。どうする？</h3>
+<details><summary>答え</summary>
+Permissions Boundary を設定する。付与できる権限の上限を決めるだけで、権限自体は付与しない。
+</details>
+
+<h3 id="s7">Q2. 別アカウントの S3 バケットに、自アカウントのユーザーからアクセスさせたい。どちらの設定が必要？</h3>
+<details><summary>答え</summary>
+クロスアカウントではアイデンティティ側とリソース側の両方で Allow が必要。リソースポリシーで相手アカウントの root を指定しただけでは足りず、相手側の管理者がアイデンティティポリシーで委任する必要がある。
+</details>
+
+<h3 id="s8">Q3. 組織内の全アカウントからだけバケットにアクセスさせたい。アカウント ID を列挙せずに済ませるには？</h3>
+<details><summary>答え</summary>
+バケットポリシーに `aws:PrincipalOrgID` 条件を使う。
+</details>
+
+<h3 id="s9">Q4. 外部ベンダーにロールを引き受けさせたい。どうする？</h3>
+<details><summary>答え</summary>
+IAM ロールを作り ExternalId を条件にして AssumeRole させる。EC2 にはインスタンスプロファイル、オンプレのサーバーには IAM Roles Anywhere（証明書ベース）、Web/モバイルアプリのユーザーには Cognito Identity Pool を使い、アクセスキーは埋め込まない。
+</details>
+
+<h3 id="s10">Q5. 同一アカウントで、SCP・Permissions Boundary・アイデンティティ/リソースポリシーが混在するときの評価順序は？</h3>
+<details><summary>答え</summary>
+1. 明示的 Deny があれば拒否。2. SCP、RCP、Permissions Boundary、セッションポリシーで Allow されていなければ拒否（共通部分が有効）。3. アイデンティティまたはリソースのどちらかで Allow があれば許可（リソースポリシーの Principal がアカウント root の場合はアイデンティティ側の Allow も必要）。4. それ以外は暗黙の Deny。
+</details>
+
+<h3 id="s11">Q6. AssumeRole すると、呼び出し元の元の権限はどうなる？ 元の権限を保ったまま別アカウントのリソースを操作するには？</h3>
+<details><summary>答え</summary>
+AssumeRole すると元の権限は失われ、ロールの権限になる。リソースベースポリシーで直接許可すれば、元の権限を保ったまま操作できる。
+</details>
+
+<h2 id="s12">疑問・確認したい点</h2>
 <p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

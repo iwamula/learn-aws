@@ -11,7 +11,8 @@
 ## 次にやること（優先順）
 - [ ] 残りの未確認: Resolver の数値上限、Route 53 Profiles、TGW ピアリングの静的ルート（`other/fact-check-log.md` 参照。優先度低）
 - [ ] Week1 新規ノート05〜07の未確認項目を裏取り: Macie/Inspector/Detective/Firewall Manager の委任管理者、DX Gateway あたりの TGW 数（6 vs 3）、LAG の条件、組織証跡の改ざん防止策
-- [ ] 01 ノート末尾のクイズ形式Q&Aを残すか整理するか、ユーザーに確認
+- [x] 01 ノート末尾のクイズ形式Q&Aは残す方針に決定。02〜18 にも同形式のクイズを追加（2026-09-26）
+- [x] 19 にクイズ形式 Q&A を追加（2026-09-26、9問）。20 以降は作成時に付ける（CLAUDE.md「ノート作成ルール」参照）
 - [x] Week2 ノート作成（README のロードマップ: 10/2-10/8）— 08〜11 完了。1本ずつ、公式ドキュメント原文で裏取りしてから書く。新規セッションで再開する場合は CLAUDE.md、このファイル、tasks/lessons.md を読み、notes/week1/05〜07 の書式に合わせる
   - [x] 08 Multi-AZ / Multi-Region と DR 4パターン（Backup & Restore、Pilot Light、Warm Standby、Multi-site Active/Active。RTO/RPO、Route 53 フェイルオーバー、Elastic Disaster Recovery）— 2026-09-25 作成、DR ホワイトペーパー原文で裏取り済み
   - [x] 09 データ層のリージョン間構成（Aurora Global Database、DynamoDB Global Tables、S3 CRR/SRR、RDS リードレプリカ、ElastiCache Global Datastore）— 2026-09-25 作成、各公式ドキュメント原文で裏取り済み。次は 10

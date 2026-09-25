@@ -157,6 +157,37 @@
 - 「アクセス頻度が予測できないデータのコスト削減」→ **S3 Intelligent-Tiering**（128 KB 未満は対象外）
 - 「中断に耐えられるバッチ処理を最安に」→ **Spot**。**2 分前通知**を EventBridge で処理
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. EC2・Fargate・Lambda を使っており、将来リージョンやインスタンスファミリーを変える可能性がある。割引を受けたい。どうする？
+<details><summary>答え</summary>
+Compute Savings Plans（最大 66% 割引）。ファミリー、サイズ、リージョン、OS、テナンシーを問わず適用される。リージョン + ファミリー固定でよければ EC2 Instance Savings Plans（最大 72%）のほうが割引は大きい。
+</details>
+
+### Q2. RI と Savings Plans が併存するとき、どの順で適用される？
+<details><summary>答え</summary>
+EC2 RI が先、その後に Savings Plans。Savings Plans の中では EC2 Instance SP が Compute SP より先。Consolidated Billing では購入アカウントの使用量が先で、同じ条件内は割引率の高い使用量から適用される。
+</details>
+
+### Q3. 特定の AZ でキャパシティを確保しつつ割引を受けたい。どうする？
+<details><summary>答え</summary>
+ゾーナル RI（指定 AZ でキャパシティ予約もする）。リージョナル RI は割引のみでキャパシティは予約しない。
+</details>
+
+### Q4. インスタンスファミリーを将来変えたい RI と、不要になったら売却したい RI は、それぞれどのクラス？
+<details><summary>答え</summary>
+変更したい場合は Convertible RI（交換可、売却不可）。売却したい場合は Standard RI（RI Marketplace で売却可、手数料は前払い額の 12%）。Convertible RI はリージョンをまたぐ交換もできない。
+</details>
+
+### Q5. 予算を超えたら自動で新規リソースの作成を止めたい。どうする？また、他アカウントの EC2 は停止できる？
+<details><summary>答え</summary>
+AWS Budgets のアクションで IAM ポリシーまたは SCP を適用する。管理アカウントから他アカウントへ SCP は適用できるが、他アカウントの EC2 / RDS の停止はできない。
+</details>
+
+### Q6. 突然のコスト急増を自動で検知したい。Budgets との違いは？
+<details><summary>答え</summary>
+Cost Anomaly Detection（機械学習で通常パターンからの逸脱を検出）。Budgets は固定の閾値で通知する。
+</details>
+
 ## 未確認
 - **Savings Plans**: 購入のキャンセル・返品ポリシー、キューでの購入、カバレッジ・使用率レポートの詳細、購入時の推奨エンジン（Cost Explorer の推奨）、RDS / ElastiCache / OpenSearch などの RI の詳細
 - **RI**: **On-Demand キャパシティ予約**との比較、**サイズ柔軟性の正規化係数**、**ボリュームディスカウント**（原文で言及のみ）、RI の変更（modify）の詳細

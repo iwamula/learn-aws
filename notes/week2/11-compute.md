@@ -62,6 +62,37 @@
 - 「重要な Lambda の枠を確保 / 下流の RDS を守る」→ 予約済み同時実行数（無料）
 - 「別の関数がスロットリングされる」→ アカウント上限 1,000 の共有枠や、他関数の予約で残りが減っていないかを確認
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. ECS でノード管理なしにコンテナを動かしたい。一方、特権コンテナや GPU、SSH が必要なコンテナもある。どうする？
+<details><summary>答え</summary>
+前者は ECS + Fargate。特権コンテナ、GPU、SSH、DaemonSet が必要なものは EC2 ノード（ECS on EC2 / EKS の EC2 ノード）。Fargate では使えない。
+</details>
+
+### Q2. Kubernetes を使いたいが、ノードの OS パッチや AMI 更新の運用は減らしたい。どうする？
+<details><summary>答え</summary>
+EKS Auto Mode（Karpenter ベース。ただし SSH・カスタム AMI は不可）または EKS on Fargate。Fargate では DaemonSet・特権コンテナ・GPU が不可で、プライベートサブネットのみ。
+</details>
+
+### Q3. SQS のキューを処理する ECS ワーカーを、バックログに応じてスケールさせたい。どうする？
+<details><summary>答え</summary>
+Application Auto Scaling で、タスクあたりのバックログ（カスタムメトリクス）に基づくスケーリングを使う。
+</details>
+
+### Q4. ECS サービスのタスクを AZ 間に均等に配置したい。どうする？
+<details><summary>答え</summary>
+既定の spread（`attribute:ecs.availability-zone`）。スケールイン時も AZ のバランスを保つ。配置戦略はベストエフォートで、配置制約は拘束力がある。
+</details>
+
+### Q5. Lambda のコールドスタートを消したい。コード変更を少なくして起動だけ短縮したい場合は？
+<details><summary>答え</summary>
+消したい場合はプロビジョニング済み同時実行数（追加料金あり）。コード変更少なめで起動を短縮するなら SnapStart。厳格なコールドスタート要件にはプロビジョニング済み同時実行数を使う。
+</details>
+
+### Q6. 重要な Lambda 関数の枠を確保し、下流の RDS の接続数も守りたい。どうする？
+<details><summary>答え</summary>
+予約済み同時実行数（追加料金なし）。関数の上限であり下限でもあるので、枠の確保と下流保護の両方に使える。0 にすると意図的に停止できる。
+</details>
+
 ## 未確認
 - Lambda のスケーリング速度: 原文に「10 秒あたり 500 の同時実行数のバースト」（プロビジョニング済みのスピルオーバーの説明）と「10 秒あたり 1,000 の実行環境」（スケーリングレートの説明）の 2 つの記述があり、**整合を確認できていない**
 - SnapStart の対応ランタイム・制約（プロビジョニング済み同時実行数との併用可否など）

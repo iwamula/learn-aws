@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">AWS WAF</a><a class="h2" href="#s2">Shield Standard と Advanced</a><a class="h2" href="#s3">Network Firewall / セキュリティグループ / NACL / WAF の使い分け</a><a class="h2" href="#s4">Secrets Manager</a><a class="h2" href="#s5">ACM</a><a class="h2" href="#s6">GuardDuty（プロテクションプラン）</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">未確認</a><a class="h2" href="#s9">疑問・確認したい点</a></nav><main><h1>Week4-19: セキュリティ補足（WAF / Shield / Secrets Manager / ACM / GuardDuty / Network Firewall）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">AWS WAF</a><a class="h2" href="#s2">Shield Standard と Advanced</a><a class="h2" href="#s3">Network Firewall / セキュリティグループ / NACL / WAF の使い分け</a><a class="h2" href="#s4">Secrets Manager</a><a class="h2" href="#s5">ACM</a><a class="h2" href="#s6">GuardDuty（プロテクションプラン）</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s9">Q1. ALB の前段で SQL インジェクションとボットを防ぎ、まず影響を確認してから遮断したい。どうする？</a><a class="h3" href="#s10">Q2. CloudFront に WAF を付けたい。WebACL はどのリージョンで作る？ NLB には付けられる？</a><a class="h3" href="#s11">Q3. DDoS でスケールアウトした分の請求増を補償してほしい。攻撃中は専門家にも支援してほしい。どうする？</a><a class="h3" href="#s12">Q4. CloudFront の背後に ALB があり、Shield Advanced で保護したい。どのリソースを保護対象にする？</a><a class="h3" href="#s13">Q5. VPC からインターネットへの通信を許可ドメインだけに制限したい。どのサービス？</a><a class="h3" href="#s14">Q6. 組織の全サブネットで、NACL の最初と最後のルールを強制しつつ、各アカウントには独自ルールも許したい。</a><a class="h3" href="#s15">Q7. DR のため別リージョンでも同じ DB 認証情報を使いたい。ローテーションはどうなる？</a><a class="h3" href="#s16">Q8. マルチリージョンの ALB と CloudFront で同じドメインの HTTPS を使い、更新も自動化したい。</a><a class="h3" href="#s17">Q9. コンテナ内の不審なプロセスと、EBS 上の悪意あるファイルを検出したい。GuardDuty のどのプラン？</a><a class="h2" href="#s18">未確認</a><a class="h2" href="#s19">疑問・確認したい点</a></nav><main><h1>Week4-19: セキュリティ補足（WAF / Shield / Secrets Manager / ACM / GuardDuty / Network Firewall）</h1>
 <p>出典（2026-09-26 に aws-mcp の search_documentation で原文を確認）: WAF Developer Guide「What is AWS WAF, Shield Advanced…」、Shield 機能ページ（Getting started）、Prescriptive Guidance「Network account」、wafv2 API リファレンス、re:Post（WAF レートベースルール、Secrets Manager ローテーション、ACM エクスポート）、Secrets Manager ユーザーガイド「Replicate secrets across Regions」「ローテーション」、GuardDuty ユーザーガイド（Runtime Monitoring 複数アカウント）と AWS Security Blog（プロテクションプラン、ACM の検証方式）、Firewall Manager「network ACL policies」、AWS 製品比較ページ（Network Firewall と WAF）。ブログ・製品ページはノート内に明記。組織横断集約は Week1 ノート 07 を参照</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -173,7 +173,53 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「CloudFront の証明書」→ <strong>us-east-1 の ACM</strong></li>
 <li>「コンテナ、S3、Lambda の脅威検出を組織全体で」→ <strong>GuardDuty プロテクションプラン + 委任管理者</strong></li>
 </ul>
-<h2 id="s8">未確認</h2>
+<h2 id="s8">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s9">Q1. ALB の前段で SQL インジェクションとボットを防ぎ、まず影響を確認してから遮断したい。どうする？</h3>
+<details><summary>答え</summary>
+AWS WAF を ALB に関連付け、AWS Managed Rules（Core Rule Set、Known Bad Inputs など）と Bot Control を使う。まず Count モードで検証してから Block に切り替える。
+</details>
+
+<h3 id="s10">Q2. CloudFront に WAF を付けたい。WebACL はどのリージョンで作る？ NLB には付けられる？</h3>
+<details><summary>答え</summary>
+CloudFront 用はスコープ CLOUDFRONT で us-east-1 に作る。他はリージョナル。NLB は原文の保護対象の列挙に含まれない（L7 のサービスが対象）。NLB や EC2 への L3/L4 攻撃は Shield の領域。
+</details>
+
+<h3 id="s11">Q3. DDoS でスケールアウトした分の請求増を補償してほしい。攻撃中は専門家にも支援してほしい。どうする？</h3>
+<details><summary>答え</summary>
+Shield Advanced（DDoS コスト保護）。SRT による緩和・事後分析を受けるには Enterprise または Business サポートが必要。Shield Standard は全顧客に追加料金なしだが、コスト保護と SRT は含まれない。
+</details>
+
+<h3 id="s12">Q4. CloudFront の背後に ALB があり、Shield Advanced で保護したい。どのリソースを保護対象にする？</h3>
+<details><summary>答え</summary>
+入口の CloudFront だけを保護対象にする。CloudFront と ALB の両方を保護すると Shield の Data Transfer Out 料金を二重に払うことになる。
+</details>
+
+<h3 id="s13">Q5. VPC からインターネットへの通信を許可ドメインだけに制限したい。どのサービス？</h3>
+<details><summary>答え</summary>
+Network Firewall（ステートフル検査、ドメインフィルタ、IPS、Suricata 互換ルール）。WAF は HTTP/HTTPS の L7 保護で、VPC のアウトバウンド制御には使わない。複数アカウントへの展開は Firewall Manager。
+</details>
+
+<h3 id="s14">Q6. 組織の全サブネットで、NACL の最初と最後のルールを強制しつつ、各アカウントには独自ルールも許したい。</h3>
+<details><summary>答え</summary>
+Firewall Manager の NACL ポリシー。最初・最後のルールの存在と順序を強制して非準拠を報告し、是正もできる。各アカウントは最初と最後の間に独自ルールを追加できる。
+</details>
+
+<h3 id="s15">Q7. DR のため別リージョンでも同じ DB 認証情報を使いたい。ローテーションはどうなる？</h3>
+<details><summary>答え</summary>
+Secrets Manager のリージョン間レプリケーションを使う。ローテーションは主リージョンで実行され、新しい値がすべてのレプリカに伝播する。レプリカにはソース DB の接続情報がそのまま入るので、リージョン固有の接続情報が必要ならキーと値を追加する。
+</details>
+
+<h3 id="s16">Q8. マルチリージョンの ALB と CloudFront で同じドメインの HTTPS を使い、更新も自動化したい。</h3>
+<details><summary>答え</summary>
+ACM はリージョナルなので、ALB のリージョンごとに証明書を発行し、CloudFront 用は us-east-1 で発行する。検証は DNS 検証にすると、CNAME レコードが残っている限り自動更新される。
+</details>
+
+<h3 id="s17">Q9. コンテナ内の不審なプロセスと、EBS 上の悪意あるファイルを検出したい。GuardDuty のどのプラン？</h3>
+<details><summary>答え</summary>
+コンテナ内のプロセスは Runtime Monitoring（EKS / ECS）、EBS のマルウェアは Malware Protection for EC2。S3 バケットの不審なアクセスは S3 Protection。複数アカウントは委任管理者アカウントからメンバーごとに有効化する。
+</details>
+
+<h2 id="s18">未確認</h2>
 <ul>
 <li><strong>WAF</strong>: WebACL の容量ユニット（WCU）の上限、ルールの評価順序と優先度、ルールグループの種類（AWS Managed / 自前 / Marketplace）、ログ出力先（S3 / CloudWatch Logs / Firehose）、CAPTCHA / Challenge、WAF の料金、<strong>Shield Advanced に含まれる WAF 料金の範囲</strong></li>
 <li><strong>Shield</strong>: 保護対象の<strong>ヘルスベース検出</strong>、<strong>Shield Advanced のサブスクリプション料金（月額と組織単位）</strong>、<strong>Route 53 のヘルスチェックとの統合</strong>、<strong>Shield network security director</strong></li>
@@ -183,5 +229,5 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>Network Firewall</strong>: <strong>ルールグループの種類（ステートレス / ステートフル）</strong>、<strong>分散型とセントラライズ型のデプロイモデル（TGW 連携）</strong>、<strong>TLS 検査</strong></li>
 <li><strong>その他</strong>: <strong>Amazon Inspector / Macie / Detective</strong>（Week1 ノート 07 の未確認項目）、<strong>IAM Access Analyzer</strong>、<strong>Security Hub</strong></li>
 </ul>
-<h2 id="s9">疑問・確認したい点</h2>
+<h2 id="s19">疑問・確認したい点</h2>
 </main></body></html>

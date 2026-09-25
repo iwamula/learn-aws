@@ -30,5 +30,36 @@
 ## セキュリティグループ / NACL
 - SG はステートフル・Allow のみ・他SGを参照可（**同一リージョンのピアリング先のSGも参照可**）。NACL はステートレス・Allow/Deny・サブネット単位・番号順に評価
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. CIDR が重複している複数の VPC やパートナー企業に、特定のサービスだけを公開したい。どうする？
+<details><summary>答え</summary>
+PrivateLink（インターフェイスVPCエンドポイント）。CIDR が重複していても使え、サービス単位・一方向（コンシューマ→プロバイダ）で公開できる。NLB/GWLB の背後のサービスを公開する。
+</details>
+
+### Q2. VPC A-B、B-C をピアリングした。A から C へ通信できる？
+<details><summary>答え</summary>
+できない。VPC ピアリングは推移的ルーティング不可。多数の VPC を相互接続するなら Transit Gateway を使う（ピアリングはフルメッシュで破綻する）。
+</details>
+
+### Q3. VPC 内の EC2 から S3 へのアクセスをインターネットに出さず、コストもかけたくない。どうする？
+<details><summary>答え</summary>
+ゲートウェイVPCエンドポイント（S3 と DynamoDB のみ、無料、ルートテーブルにエントリ追加）。ただしオンプレ・他リージョン・ピアリング先からは使えないので、オンプレ経由などで使うなら S3 のインターフェイスエンドポイントにする。
+</details>
+
+### Q4. VPC からのアウトバウンド通信を、サードパーティのアプライアンスで透過的に検査したい。どうする？
+<details><summary>答え</summary>
+TGW + 検査用 VPC を構成し、Gateway Load Balancer（GWLB）でアプライアンスを透過的に挟む。AWS のサービスなら Network Firewall も使える。
+</details>
+
+### Q5. 数十の VPC とオンプレを Direct Connect 1 本でまとめて接続したい。どの VIF と構成？
+<details><summary>答え</summary>
+Transit VIF + Direct Connect Gateway + Transit Gateway。Private VIF は1つの VGW、または DX Gateway 経由で複数 VPC/リージョンに届くが、多数 VPC の集約には Transit VIF + TGW が向く。なお DX Gateway は VPC 同士の通信は仲介しない。
+</details>
+
+### Q6. 数値確認。Site-to-Site VPN の標準トンネルの最大帯域は？ 5Gbps の Large Bandwidth Tunnel はどこに接続できる？
+<details><summary>答え</summary>
+標準は1トンネル最大 1.25Gbps。Large Bandwidth Tunnel は最大 5Gbps だが、TGW / Cloud WAN 接続のみ。TGW に終端すれば ECMP で複数トンネルの帯域を束ねることもできる。
+</details>
+
 ## 疑問・確認したい点
 （ここに `Qn ...` と追記して、AIに事実確認を依頼してください）

@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Resiliency Toolkit の3モデル</a><a class="h2" href="#s1">障害時の切り替え</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">注意（ドキュメント間の不一致）</a><a class="h2" href="#s4">疑問・確認したい点</a></nav><main><h1>Week1-6: Direct Connect の冗長構成</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Resiliency Toolkit の3モデル</a><a class="h2" href="#s1">障害時の切り替え</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s4">Q1. ロケーション障害にも耐え、SLA 99.99% を目指したい。どの構成？</a><a class="h3" href="#s5">Q2. 専用線が切れても業務を止めたくないが、コストは抑えたい。どうする？</a><a class="h3" href="#s6">Q3. リンク障害の検知を速くしたい。BGP タイマーを短くする以外の方法は？</a><a class="h3" href="#s7">Q4. 帯域を増やしたい。LAG は冗長化の手段になる？</a><a class="h3" href="#s8">Q5. 1本の DX で複数リージョンの VPC や多数の VPC に到達し、DX ロケーション間で拠点同士も直接つなぎたい。使う機能は？</a><a class="h3" href="#s9">Q6. 数値確認。BGP の既定タイマーは？ 障害時の切り替えを急ぎで、すぐ（数分〜）回線が必要なときは？</a><a class="h2" href="#s10">注意（ドキュメント間の不一致）</a><a class="h2" href="#s11">疑問・確認したい点</a></nav><main><h1>Week1-6: Direct Connect の冗長構成</h1>
 <h2 id="s0">Resiliency Toolkit の3モデル</h2>
 <div class="tbl"><table>
 <thead>
@@ -79,10 +79,41 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「DX 上で暗号化」→ MACsec、または DX 上の IPsec VPN（02 ノート）</li>
 <li>「すぐに（数分〜）必要」→ ホスト型（パートナーが既存回線から払い出し）。専用接続は数週間〜</li>
 </ul>
-<h2 id="s3">注意（ドキュメント間の不一致）</h2>
+<h2 id="s3">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s4">Q1. ロケーション障害にも耐え、SLA 99.99% を目指したい。どの構成？</h3>
+<details><summary>答え</summary>
+最大耐障害性モデル。複数ロケーションに、ロケーションごとに別デバイスへ終端する冗長接続を置く。SLA は専用接続を Connection wizard で注文し要件をすべて満たした場合に限る。1ロケーションに2本では足りない。
+</details>
+
+<h3 id="s5">Q2. 専用線が切れても業務を止めたくないが、コストは抑えたい。どうする？</h3>
+<details><summary>答え</summary>
+DX + Site-to-Site VPN バックアップ。オンプレ側で DX 側に高い BGP local preference を設定する。TGW 構成なら Transit VIF（DX Gateway 経由）と VPN を同じ TGW に接続する。非対称ルーティングに注意。
+</details>
+
+<h3 id="s6">Q3. リンク障害の検知を速くしたい。BGP タイマーを短くする以外の方法は？</h3>
+<details><summary>答え</summary>
+BFD を使う。AWS 側は VIF で自動有効だが、顧客側ルーターで有効化が必要。BFD と graceful restart の同時設定は非推奨。
+</details>
+
+<h3 id="s7">Q4. 帯域を増やしたい。LAG は冗長化の手段になる？</h3>
+<details><summary>答え</summary>
+LAG は同一ロケーション・同一速度の接続を束ねて帯域を増やすもので、冗長化（ロケーション分散）とは目的が違う。ロケーション障害には備えられない。
+</details>
+
+<h3 id="s8">Q5. 1本の DX で複数リージョンの VPC や多数の VPC に到達し、DX ロケーション間で拠点同士も直接つなぎたい。使う機能は？</h3>
+<details><summary>答え</summary>
+複数リージョンの VPC には Direct Connect Gateway（Private VIF + VGW、または Transit VIF + TGW）。DX ロケーション同士を AWS バックボーン経由でつなぐには SiteLink（VPC を介さない拠点間通信）。
+</details>
+
+<h3 id="s9">Q6. 数値確認。BGP の既定タイマーは？ 障害時の切り替えを急ぎで、すぐ（数分〜）回線が必要なときは？</h3>
+<details><summary>答え</summary>
+既定は hold 90 秒 / keepalive 30 秒（最小は hold 3 秒 / keepalive 1 秒）。すぐに必要ならホスト型（パートナーが既存回線から払い出し）。専用接続は数週間〜かかる。
+</details>
+
+<h2 id="s10">注意（ドキュメント間の不一致）</h2>
 <ul>
 <li>DX Gateway あたりの TGW 数: 公式クォータ表は <strong>6</strong>、re:Post の VIF 解説は「最大 3」。<strong>クォータ表を優先するが、要再確認</strong>（<code>other/fact-check-log.md</code> に記録）</li>
 </ul>
-<h2 id="s4">疑問・確認したい点</h2>
+<h2 id="s11">疑問・確認したい点</h2>
 <p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

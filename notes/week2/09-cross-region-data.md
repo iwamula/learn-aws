@@ -73,6 +73,37 @@
 - 「Redis のリージョン間レプリケーション」→ ElastiCache Global Datastore（自動フェイルオーバーなし）
 - 「暗号化した RDS のクロスリージョンレプリカ」→ ソースが暗号化済み + 宛先リージョンの KMS キーを指定
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を 1 分未満、レプリケーション遅延を 1 秒未満にしたい。どうする？
+<details><summary>答え</summary>
+Aurora Global Database。ストレージ層で非同期レプリケーションする（昇格 1 分未満は DR ホワイトペーパー由来で、Aurora User Guide では未確認）。RDS（Aurora 以外）のクロスリージョンリードレプリカは昇格に数分かかり再起動も伴う。
+</details>
+
+### Q2. Aurora Global Database で、計画的なリージョンローテーションをデータ損失なしで行いたい。どの操作？
+<details><summary>答え</summary>
+スイッチオーバー（旧 managed planned failover）。健全な状態でデータ損失なしにプライマリを移す。リージョン障害からの復旧はフェイルオーバー。
+</details>
+
+### Q3. マルチリージョンで RPO ゼロ、どのレプリカでも強い整合性のある読み取りをしたい。どうする？
+<details><summary>答え</summary>
+DynamoDB グローバルテーブルの MRSC。同期レプリケーションで、ちょうど 3 リージョン（2 レプリカ + witness も可）が必要。整合性モードは作成後に変更できず混在も不可。既定の MREC は非同期で last writer wins。
+</details>
+
+### Q4. S3 のリージョン間コピーを SLA つきで 15 分以内にしたい。すでにあるオブジェクトもコピーしたい。どうする？
+<details><summary>答え</summary>
+CRR + S3 RTC（99.99% を 15 分以内）。既存オブジェクトは S3 Batch Replication でコピーする。ただし S3 RTC は Batch Replication には適用されない。
+</details>
+
+### Q5. 暗号化した RDS のクロスリージョンリードレプリカを作りたい。条件は？
+<details><summary>答え</summary>
+ソースが暗号化されていることと、宛先リージョンの KMS キーを指定すること。
+</details>
+
+### Q6. ElastiCache Global Datastore でリージョン障害が起きた。自動でフェイルオーバーされる？
+<details><summary>答え</summary>
+されない。リージョン間の自動フェイルオーバーは非対応で、セカンダリを手動でプライマリに昇格する。アプリ側やランブックで手順を自動化する。
+</details>
+
 ## 未確認
 - Aurora write forwarding の整合性レベル（セッション/結果整合など）と制約
 - Aurora PostgreSQL の RPO 管理機能（`rds.global_db_rpo`）の詳細

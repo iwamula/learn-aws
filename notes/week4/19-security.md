@@ -75,6 +75,52 @@
 - 「CloudFront の証明書」→ **us-east-1 の ACM**
 - 「コンテナ、S3、Lambda の脅威検出を組織全体で」→ **GuardDuty プロテクションプラン + 委任管理者**
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. ALB の前段で SQL インジェクションとボットを防ぎ、まず影響を確認してから遮断したい。どうする？
+<details><summary>答え</summary>
+AWS WAF を ALB に関連付け、AWS Managed Rules（Core Rule Set、Known Bad Inputs など）と Bot Control を使う。まず Count モードで検証してから Block に切り替える。
+</details>
+
+### Q2. CloudFront に WAF を付けたい。WebACL はどのリージョンで作る？ NLB には付けられる？
+<details><summary>答え</summary>
+CloudFront 用はスコープ CLOUDFRONT で us-east-1 に作る。他はリージョナル。NLB は原文の保護対象の列挙に含まれない（L7 のサービスが対象）。NLB や EC2 への L3/L4 攻撃は Shield の領域。
+</details>
+
+### Q3. DDoS でスケールアウトした分の請求増を補償してほしい。攻撃中は専門家にも支援してほしい。どうする？
+<details><summary>答え</summary>
+Shield Advanced（DDoS コスト保護）。SRT による緩和・事後分析を受けるには Enterprise または Business サポートが必要。Shield Standard は全顧客に追加料金なしだが、コスト保護と SRT は含まれない。
+</details>
+
+### Q4. CloudFront の背後に ALB があり、Shield Advanced で保護したい。どのリソースを保護対象にする？
+<details><summary>答え</summary>
+入口の CloudFront だけを保護対象にする。CloudFront と ALB の両方を保護すると Shield の Data Transfer Out 料金を二重に払うことになる。
+</details>
+
+### Q5. VPC からインターネットへの通信を許可ドメインだけに制限したい。どのサービス？
+<details><summary>答え</summary>
+Network Firewall（ステートフル検査、ドメインフィルタ、IPS、Suricata 互換ルール）。WAF は HTTP/HTTPS の L7 保護で、VPC のアウトバウンド制御には使わない。複数アカウントへの展開は Firewall Manager。
+</details>
+
+### Q6. 組織の全サブネットで、NACL の最初と最後のルールを強制しつつ、各アカウントには独自ルールも許したい。
+<details><summary>答え</summary>
+Firewall Manager の NACL ポリシー。最初・最後のルールの存在と順序を強制して非準拠を報告し、是正もできる。各アカウントは最初と最後の間に独自ルールを追加できる。
+</details>
+
+### Q7. DR のため別リージョンでも同じ DB 認証情報を使いたい。ローテーションはどうなる？
+<details><summary>答え</summary>
+Secrets Manager のリージョン間レプリケーションを使う。ローテーションは主リージョンで実行され、新しい値がすべてのレプリカに伝播する。レプリカにはソース DB の接続情報がそのまま入るので、リージョン固有の接続情報が必要ならキーと値を追加する。
+</details>
+
+### Q8. マルチリージョンの ALB と CloudFront で同じドメインの HTTPS を使い、更新も自動化したい。
+<details><summary>答え</summary>
+ACM はリージョナルなので、ALB のリージョンごとに証明書を発行し、CloudFront 用は us-east-1 で発行する。検証は DNS 検証にすると、CNAME レコードが残っている限り自動更新される。
+</details>
+
+### Q9. コンテナ内の不審なプロセスと、EBS 上の悪意あるファイルを検出したい。GuardDuty のどのプラン？
+<details><summary>答え</summary>
+コンテナ内のプロセスは Runtime Monitoring（EKS / ECS）、EBS のマルウェアは Malware Protection for EC2。S3 バケットの不審なアクセスは S3 Protection。複数アカウントは委任管理者アカウントからメンバーごとに有効化する。
+</details>
+
 ## 未確認
 - **WAF**: WebACL の容量ユニット（WCU）の上限、ルールの評価順序と優先度、ルールグループの種類（AWS Managed / 自前 / Marketplace）、ログ出力先（S3 / CloudWatch Logs / Firehose）、CAPTCHA / Challenge、WAF の料金、**Shield Advanced に含まれる WAF 料金の範囲**
 - **Shield**: 保護対象の**ヘルスベース検出**、**Shield Advanced のサブスクリプション料金（月額と組織単位）**、**Route 53 のヘルスチェックとの統合**、**Shield network security director**

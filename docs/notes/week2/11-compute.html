@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">ECS</a><a class="h3" href="#s2">マルチ AZ（ECS）</a><a class="h3" href="#s3">スケーリング（ECS サービス）</a><a class="h2" href="#s4">EKS</a><a class="h2" href="#s5">Lambda</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">未確認</a><a class="h2" href="#s8">疑問・確認したい点</a></nav><main><h1>Week2-11: コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">ECS</a><a class="h3" href="#s2">マルチ AZ（ECS）</a><a class="h3" href="#s3">スケーリング（ECS サービス）</a><a class="h2" href="#s4">EKS</a><a class="h2" href="#s5">Lambda</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s8">Q1. ECS でノード管理なしにコンテナを動かしたい。一方、特権コンテナや GPU、SSH が必要なコンテナもある。どうする？</a><a class="h3" href="#s9">Q2. Kubernetes を使いたいが、ノードの OS パッチや AMI 更新の運用は減らしたい。どうする？</a><a class="h3" href="#s10">Q3. SQS のキューを処理する ECS ワーカーを、バックログに応じてスケールさせたい。どうする？</a><a class="h3" href="#s11">Q4. ECS サービスのタスクを AZ 間に均等に配置したい。どうする？</a><a class="h3" href="#s12">Q5. Lambda のコールドスタートを消したい。コード変更を少なくして起動だけ短縮したい場合は？</a><a class="h3" href="#s13">Q6. 重要な Lambda 関数の枠を確保し、下流の RDS の接続数も守りたい。どうする？</a><a class="h2" href="#s14">未確認</a><a class="h2" href="#s15">疑問・確認したい点</a></nav><main><h1>Week2-11: コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）</h1>
 <p>出典（2026-09-26 に原文を curl で確認）: ECS Developer Guide「Amazon ECS launch types and capacity providers」「Architect for AWS Fargate for Amazon ECS」「Automatically scale your Amazon ECS service」「Use strategies to define Amazon ECS task placement」「Best practices for Amazon ECS service parameters」、EKS User Guide「Manage compute resources by using nodes」「Simplify compute management with AWS Fargate」「Scale cluster compute with Karpenter and Cluster Autoscaler」、Lambda Developer Guide「Understanding and visualizing concurrency」「Configuring reserved concurrency」「Improving startup performance with Lambda SnapStart」「Resilience in AWS Lambda」。EC2 の Auto Scaling は SAA の範囲として省略</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -120,7 +120,38 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「重要な Lambda の枠を確保 / 下流の RDS を守る」→ 予約済み同時実行数（無料）</li>
 <li>「別の関数がスロットリングされる」→ アカウント上限 1,000 の共有枠や、他関数の予約で残りが減っていないかを確認</li>
 </ul>
-<h2 id="s7">未確認</h2>
+<h2 id="s7">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s8">Q1. ECS でノード管理なしにコンテナを動かしたい。一方、特権コンテナや GPU、SSH が必要なコンテナもある。どうする？</h3>
+<details><summary>答え</summary>
+前者は ECS + Fargate。特権コンテナ、GPU、SSH、DaemonSet が必要なものは EC2 ノード（ECS on EC2 / EKS の EC2 ノード）。Fargate では使えない。
+</details>
+
+<h3 id="s9">Q2. Kubernetes を使いたいが、ノードの OS パッチや AMI 更新の運用は減らしたい。どうする？</h3>
+<details><summary>答え</summary>
+EKS Auto Mode（Karpenter ベース。ただし SSH・カスタム AMI は不可）または EKS on Fargate。Fargate では DaemonSet・特権コンテナ・GPU が不可で、プライベートサブネットのみ。
+</details>
+
+<h3 id="s10">Q3. SQS のキューを処理する ECS ワーカーを、バックログに応じてスケールさせたい。どうする？</h3>
+<details><summary>答え</summary>
+Application Auto Scaling で、タスクあたりのバックログ（カスタムメトリクス）に基づくスケーリングを使う。
+</details>
+
+<h3 id="s11">Q4. ECS サービスのタスクを AZ 間に均等に配置したい。どうする？</h3>
+<details><summary>答え</summary>
+既定の spread（`attribute:ecs.availability-zone`）。スケールイン時も AZ のバランスを保つ。配置戦略はベストエフォートで、配置制約は拘束力がある。
+</details>
+
+<h3 id="s12">Q5. Lambda のコールドスタートを消したい。コード変更を少なくして起動だけ短縮したい場合は？</h3>
+<details><summary>答え</summary>
+消したい場合はプロビジョニング済み同時実行数（追加料金あり）。コード変更少なめで起動を短縮するなら SnapStart。厳格なコールドスタート要件にはプロビジョニング済み同時実行数を使う。
+</details>
+
+<h3 id="s13">Q6. 重要な Lambda 関数の枠を確保し、下流の RDS の接続数も守りたい。どうする？</h3>
+<details><summary>答え</summary>
+予約済み同時実行数（追加料金なし）。関数の上限であり下限でもあるので、枠の確保と下流保護の両方に使える。0 にすると意図的に停止できる。
+</details>
+
+<h2 id="s14">未確認</h2>
 <ul>
 <li>Lambda のスケーリング速度: 原文に「10 秒あたり 500 の同時実行数のバースト」（プロビジョニング済みのスピルオーバーの説明）と「10 秒あたり 1,000 の実行環境」（スケーリングレートの説明）の 2 つの記述があり、<strong>整合を確認できていない</strong></li>
 <li>SnapStart の対応ランタイム・制約（プロビジョニング済み同時実行数との併用可否など）</li>
@@ -130,6 +161,6 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>EKS のコントロールプレーンのマルチ AZ 構成、EKS Anywhere / ECS Anywhere</li>
 <li>App Runner、Elastic Beanstalk、Batch との使い分け</li>
 </ul>
-<h2 id="s8">疑問・確認したい点</h2>
+<h2 id="s15">疑問・確認したい点</h2>
 <p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
 </main></body></html>

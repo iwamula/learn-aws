@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">CloudTrail 組織証跡</a><a class="h3" href="#s2">イベントの種類</a><a class="h3" href="#s3">ログファイル整合性検証</a><a class="h3" href="#s4">CloudTrail Lake（注意）</a><a class="h2" href="#s5">AWS Config</a><a class="h3" href="#s6">アグリゲーター（データ集約）</a><a class="h3" href="#s7">組織ルール・組織適合パック（展開）</a><a class="h3" href="#s8">修復（Remediation）</a><a class="h2" href="#s9">CloudWatch: クロスアカウントオブザーバビリティ（OAM）</a><a class="h2" href="#s10">CloudWatch Logs: 集約の方法</a><a class="h2" href="#s11">CloudWatch アラーム</a><a class="h2" href="#s12">X-Ray</a><a class="h2" href="#s13">判断ポイント</a><a class="h2" href="#s14">未確認</a></nav><main><h1>Week3-13: 監視・監査・コンプライアンス（CloudTrail 組織証跡、Config、CloudWatch 横断監視、X-Ray）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">CloudTrail 組織証跡</a><a class="h3" href="#s2">イベントの種類</a><a class="h3" href="#s3">ログファイル整合性検証</a><a class="h3" href="#s4">CloudTrail Lake（注意）</a><a class="h2" href="#s5">AWS Config</a><a class="h3" href="#s6">アグリゲーター（データ集約）</a><a class="h3" href="#s7">組織ルール・組織適合パック（展開）</a><a class="h3" href="#s8">修復（Remediation）</a><a class="h2" href="#s9">CloudWatch: クロスアカウントオブザーバビリティ（OAM）</a><a class="h2" href="#s10">CloudWatch Logs: 集約の方法</a><a class="h2" href="#s11">CloudWatch アラーム</a><a class="h2" href="#s12">X-Ray</a><a class="h2" href="#s13">判断ポイント</a><a class="h2" href="#s14">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s15">Q1. 組織の全アカウント・全リージョンの API 操作を 1 か所の S3 に記録し、メンバーアカウントが停止・削除できないようにしたい。どうする？</a><a class="h3" href="#s16">Q2. CloudTrail のログが変更・削除されていないことを証明したい。どうする？</a><a class="h3" href="#s17">Q3. API 呼び出し数やエラー率の異常な急増を検出したい。どうする？</a><a class="h3" href="#s18">Q4. 全アカウントの Config のコンプライアンス状況を 1 画面で見たい。さらに、全アカウントに同じ Config ルールを強制したい。それぞれどうする？</a><a class="h3" href="#s19">Q5. 複数アカウントのメトリクス・ログ・X-Ray トレースを 1 つの監視アカウントで見たい。新規アカウントも自動で対象にしたい。どうする？</a><a class="h3" href="#s20">Q6. X-Ray で、下流サービスのサンプリング率だけを下げても効かない。なぜ？どうする？</a><a class="h2" href="#s21">未確認</a></nav><main><h1>Week3-13: 監視・監査・コンプライアンス（CloudTrail 組織証跡、Config、CloudWatch 横断監視、X-Ray）</h1>
 <p>出典（2026-09-26 に原文を curl で確認）: CloudTrail User Guide「Creating a trail for an organization」「Validating CloudTrail log file integrity」「CloudTrail concepts」「Working with CloudTrail Insights」「Creating an organization event data store」、AWS Config Developer Guide「Multi-Account Multi-Region Data Aggregation」「Managing AWS Config Rules Across All Accounts in Your Organization」「Managing Conformance Packs Across All Accounts in Your Organization」「Conformance Packs」「Remediating Noncompliant Resources」「Setting Up Auto Remediation」、CloudWatch User Guide「CloudWatch cross-account observability」「Create a composite alarm」、CloudWatch Logs User Guide「Cross-account cross-Region subscriptions」「Data centralization」、X-Ray Developer Guide「Configuring sampling rules」</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -232,7 +232,38 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「アラーム通知の氾濫を減らす」→ 複合アラーム</li>
 <li>「X-Ray で下流サービスのサンプリング率を変えたい」→ ルートサービスのルールを変更（ペアレントベース）</li>
 </ul>
-<h2 id="s14">未確認</h2>
+<h2 id="s14">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s15">Q1. 組織の全アカウント・全リージョンの API 操作を 1 か所の S3 に記録し、メンバーアカウントが停止・削除できないようにしたい。どうする？</h3>
+<details><summary>答え</summary>
+CloudTrail の組織証跡（管理アカウントまたは委任管理者が作成）。メンバーアカウントには同名の証跡のコピーができるが、見られるだけで削除・ログ停止・記録内容の変更はできない。
+</details>
+
+<h3 id="s16">Q2. CloudTrail のログが変更・削除されていないことを証明したい。どうする？</h3>
+<details><summary>答え</summary>
+ログファイル整合性検証。1 時間ごとに署名付きダイジェストファイルが作られる。有効化しただけでは検証されず、AWS CLI などで検証する必要がある。
+</details>
+
+<h3 id="s17">Q3. API 呼び出し数やエラー率の異常な急増を検出したい。どうする？</h3>
+<details><summary>答え</summary>
+CloudTrail Insights。既定では記録されず追加料金がかかる。API 呼び出し率は書き込みの管理イベントが対象。
+</details>
+
+<h3 id="s18">Q4. 全アカウントの Config のコンプライアンス状況を 1 画面で見たい。さらに、全アカウントに同じ Config ルールを強制したい。それぞれどうする？</h3>
+<details><summary>答え</summary>
+閲覧は Config アグリゲーター（読み取り専用。Organizations 経由なら認可不要）。ルールの強制は組織 Config ルール / 組織適合パック（API/CLI から）。アグリゲーターではルールを展開できない。
+</details>
+
+<h3 id="s19">Q5. 複数アカウントのメトリクス・ログ・X-Ray トレースを 1 つの監視アカウントで見たい。新規アカウントも自動で対象にしたい。どうする？</h3>
+<details><summary>答え</summary>
+CloudWatch クロスアカウントオブザーバビリティ（OAM）。監視アカウントに Sink、ソース側に Link を作る。Organizations で組織／OU 単位にリンクすると新規アカウントが自動でオンボードされる。
+</details>
+
+<h3 id="s20">Q6. X-Ray で、下流サービスのサンプリング率だけを下げても効かない。なぜ？どうする？</h3>
+<details><summary>答え</summary>
+サンプリングはペアレントベースで、最初の X-Ray 対応サービス（ルート）が 1 回だけ決定し、下流はその決定に従うため。ルートサービスのサンプリングルールを変更する。
+</details>
+
+<h2 id="s21">未確認</h2>
 <ul>
 <li><strong>ネットワークアクティビティイベントの詳細</strong>、CloudTrail の証跡の<strong>料金</strong>（管理イベントの最初のコピー無料など）、S3 バケットポリシー・KMS の設定例、CloudTrail → CloudWatch Logs / EventBridge 連携</li>
 <li><strong>CloudTrail Lake のその後の扱い</strong>（原文注記の 2026-05-31 以降の受付終了の詳細）</li>

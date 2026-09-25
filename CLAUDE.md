@@ -18,6 +18,9 @@ AWS Certified Solutions Architect - Professional (SAP-C02) の学習用リポジ
 - 訂正したら `other/fact-check-log.md` に ✅/⚠️/➕ で記録する。未確認の項目は「未確認」と明記する
 - 回答は日本語。試験（SAP-C02）での判断ポイントに結びつける
 
+## ノート作成ルール
+- 新規ノートは「## 試験での判断ポイント」の後（「## 未確認」の前）に、`notes/week1/01-organizations-scp.md` と同じ書式のクイズ形式 Q&A（`## Q&A（答えを隠して考えてから確認）`、`<details><summary>答え</summary>`）を5〜6問付ける。ノート本文の事実のみから作り、未確認項目は出題しない
+
 ## トークン削減の工夫
 
 

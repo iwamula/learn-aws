@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">S3 ストレージクラス（アーカイブ系）</a><a class="h2" href="#s2">S3 レプリケーション（補足。基本は Week2 ノート 09）</a><a class="h2" href="#s3">S3 Object Lock</a><a class="h2" href="#s4">S3 マルチリージョン アクセスポイント / アクセスポイント / Transfer Acceleration</a><a class="h2" href="#s5">Storage Gateway</a><a class="h2" href="#s6">FSx</a><a class="h2" href="#s7">EFS</a><a class="h2" href="#s8">判断ポイント</a><a class="h2" href="#s9">未確認</a><a class="h2" href="#s10">疑問・確認したい点</a></nav><main><h1>Week4-18: S3 詳細 / Storage Gateway / FSx / EFS（ストレージ）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">S3 ストレージクラス（アーカイブ系）</a><a class="h2" href="#s2">S3 レプリケーション（補足。基本は Week2 ノート 09）</a><a class="h2" href="#s3">S3 Object Lock</a><a class="h2" href="#s4">S3 マルチリージョン アクセスポイント / アクセスポイント / Transfer Acceleration</a><a class="h2" href="#s5">Storage Gateway</a><a class="h2" href="#s6">FSx</a><a class="h2" href="#s7">EFS</a><a class="h2" href="#s8">判断ポイント</a><a class="h2" href="#s9">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s10">Q1. オンプレから NFS / SMB で S3 にファイルを書き込み、S3 側でも直接オブジェクトとして使いたい。どうする？</a><a class="h3" href="#s11">Q2. オンプレの iSCSI ボリュームで、全データを常にローカルに置きたい。頻繁に使うデータだけローカルに置く場合は？</a><a class="h3" href="#s12">Q3. 規制で、root ユーザーでも保持期間中は削除できない WORM ストレージが必要。どうする？</a><a class="h3" href="#s13">Q4. 複数リージョンのバケットに、最寄り（遅延最小）のバケットへ自動ルーティングしたい。Transfer Acceleration との違いは？</a><a class="h3" href="#s14">Q5. 既存オブジェクトも別リージョンへ複製したい。また、複製の遅延を 15 分以内に保証したい。それぞれどうする？</a><a class="h3" href="#s15">Q6. HPC / 機械学習の高スループットが必要で、S3 と連携したい。Windows の AD / DFS / SMB が必要なワークロードは？ NFS + SMB + iSCSI が必要なら？</a><a class="h2" href="#s16">未確認</a><a class="h2" href="#s17">疑問・確認したい点</a></nav><main><h1>Week4-18: S3 詳細 / Storage Gateway / FSx / EFS（ストレージ）</h1>
 <p>出典（2026-09-26 に aws-mcp の search_documentation で原文を確認）: S3 User Guide「S3 Glacier storage classes」「Object Lock」「Batch Replication」「Delete marker replication」「Multi-Region Access Point の権限」、S3 FAQ、S3 Replication 機能ページ / PutBucketReplication API、Storage Gateway FAQ / Volume Gateway ユーザーガイド / ドキュメント概要、FSx「Help me choose」ページ、FSx for Lustre FAQ / re:Post、FSx for Windows「Accessing your data」、FSx for ONTAP FAQ / ユーザーガイド、EFS ユーザーガイド「Features」/ 機能ページ、re:Post（EFS スループットモード）、CloudFront DG（MRAP と OAC）。AWS ブログはノート内に明記</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -240,7 +240,38 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「Windows のファイル共有（AD、DFS、SMB）」→ <strong>FSx for Windows</strong>、「HPC / 機械学習の高スループット」→ <strong>FSx for Lustre</strong>（S3 と連携）、「NFS + SMB + iSCSI」→ <strong>FSx for ONTAP</strong></li>
 <li>「Linux の共有ファイル、複数 AZ のインスタンスから」→ <strong>EFS</strong></li>
 </ul>
-<h2 id="s9">未確認</h2>
+<h2 id="s9">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s10">Q1. オンプレから NFS / SMB で S3 にファイルを書き込み、S3 側でも直接オブジェクトとして使いたい。どうする？</h3>
+<details><summary>答え</summary>
+S3 File Gateway。S3 にオブジェクトとして保存され（ローカルキャッシュあり）、バケットポリシーも適用できる。既存のテープバックアップ運用を維持したいなら Tape Gateway、SMB 共有を FSx for Windows に置くなら FSx File Gateway。
+</details>
+
+<h3 id="s11">Q2. オンプレの iSCSI ボリュームで、全データを常にローカルに置きたい。頻繁に使うデータだけローカルに置く場合は？</h3>
+<details><summary>答え</summary>
+前者は Volume Gateway 保管型（S3 へ非同期バックアップ）。後者はキャッシュ型（主データは S3、頻繁なデータをローカルキャッシュ）。キャッシュ型は 1 GiB〜32 TiB、ゲートウェイあたり最大 32 ボリューム、合計 1,024 TiB。
+</details>
+
+<h3 id="s12">Q3. 規制で、root ユーザーでも保持期間中は削除できない WORM ストレージが必要。どうする？</h3>
+<details><summary>答え</summary>
+S3 Object Lock のコンプライアンスモード。バージョニングが有効なバケットが必須。モード変更も保持期間の短縮もできない。特定ユーザーだけ例外的に削除できるならガバナンスモード、期限なしで保全するならリーガルホールド。
+</details>
+
+<h3 id="s13">Q4. 複数リージョンのバケットに、最寄り（遅延最小）のバケットへ自動ルーティングしたい。Transfer Acceleration との違いは？</h3>
+<details><summary>答え</summary>
+Multi-Region Access Point（MRAP）に CRR を組み合わせる。Transfer Acceleration は単一バケットへの長距離転送の高速化で、MRAP は複数リージョンの複数バケットにまたがる。MRAP は内部で Global Accelerator を使うため、Transfer Acceleration の有効化は別途不要。
+</details>
+
+<h3 id="s14">Q5. 既存オブジェクトも別リージョンへ複製したい。また、複製の遅延を 15 分以内に保証したい。それぞれどうする？</h3>
+<details><summary>答え</summary>
+既存オブジェクトは S3 Batch Replication（ソースバケットにレプリケーション設定が既にあることが前提）。15 分の保証は S3 RTC（SLA は月間 99.9% を 15 分以内）。なお削除マーカーは既定では宛先に複製されない。
+</details>
+
+<h3 id="s15">Q6. HPC / 機械学習の高スループットが必要で、S3 と連携したい。Windows の AD / DFS / SMB が必要なワークロードは？ NFS + SMB + iSCSI が必要なら？</h3>
+<details><summary>答え</summary>
+順に FSx for Lustre（S3 とはデータリポジトリ関連付け DRA で連携）、FSx for Windows File Server、FSx for NetApp ONTAP。Lustre のスクラッチはデータが複製されず、障害で失われる。許容できないなら永続を選ぶ。
+</details>
+
+<h2 id="s16">未確認</h2>
 <ul>
 <li><strong>S3</strong>: Standard-IA / One Zone-IA の最小期間・最小サイズ、<strong>S3 Express One Zone</strong>、Glacier の取り出しオプション（Expedited / Standard / Bulk）と料金、ライフサイクル移行の制約、<strong>S3 Inventory / Storage Lens</strong>、<strong>Object Lambda</strong>、<strong>署名付き URL</strong>、<strong>バケットポリシーによる VPC エンドポイント制限</strong>、<strong>SSE-S3 / SSE-KMS / DSSE-KMS の詳細</strong>、<strong>MFA Delete</strong>、<strong>Multi-part upload の上限</strong>、<strong>Byte-range fetch</strong>、<strong>CRR のクロスアカウント時の所有者オーバーライド</strong>、<strong>Block Public Access</strong>、<strong>Access Points の VPC 制限</strong></li>
 <li><strong>Storage Gateway</strong>: <strong>FSx File Gateway の今後の扱い</strong>（原文で最新状況を要確認）、<strong>ホスト先（オンプレ VM / EC2 / ハードウェアアプライアンス）</strong>、<strong>帯域制限</strong>、<strong>Volume Gateway の保管型の上限</strong>、<strong>S3 File Gateway のキャッシュ更新</strong>（RefreshCache）、S3 ストレージクラスの選択</li>
@@ -248,5 +279,5 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>EFS</strong>: <strong>パフォーマンスモード（General Purpose / Max I/O）</strong>、<strong>リージョン間レプリケーション</strong>、<strong>マウントターゲットとセキュリティグループ</strong>、<strong>アクセスポイント</strong>、<strong>転送中 / 保管時の暗号化</strong>、<strong>EFS の料金</strong>、<strong>AWS DataSync でのデータ移行</strong></li>
 <li><strong>選定全般</strong>: EBS / インスタンスストア / EFS / FSx の総合比較</li>
 </ul>
-<h2 id="s10">疑問・確認したい点</h2>
+<h2 id="s17">疑問・確認したい点</h2>
 </main></body></html>

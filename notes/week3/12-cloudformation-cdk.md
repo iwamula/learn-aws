@@ -111,6 +111,37 @@
 - 「別アカウント・別リージョンのスタック出力を参照」→ `Fn::GetStackOutput`（Export/ImportValue は同一アカウント・リージョン限定）
 - 「EC2 内のソフトのインストール完了を待つ」→ CreationPolicy + cfn-signal
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. 組織の全アカウントに同じベースラインスタックを展開し、今後追加されるアカウントにも自動で適用したい。どうする？
+<details><summary>答え</summary>
+StackSets のサービスマネージド権限 + 自動デプロイ。Organizations との信頼されたアクセスを有効化する。ただし管理アカウントにはスタックがデプロイされない点に注意。
+</details>
+
+### Q2. 組織外のアカウントにも同じスタックを展開したい。どうする？
+<details><summary>答え</summary>
+StackSets のセルフマネージド権限。各ターゲットアカウントに IAM ロールを自分で作る。サービスマネージドは組織内のアカウントのみ。
+</details>
+
+### Q3. StackSets で、失敗したら以降のリージョンへの展開を止めたい。どう設定する？
+<details><summary>答え</summary>
+Failure tolerance（リージョンごとに許容する失敗数）を設定し、Region concurrency を Sequential（既定）にする。超えるとそのリージョンが FAILED になり、残りのリージョンへの操作も取り消される。
+</details>
+
+### Q4. スタック更新の前に、置換や削除されるリソースがないか確認したい。また、コンソールで手動変更されていないかも検出したい。どうする？
+<details><summary>答え</summary>
+更新前の確認は変更セット（実行せずにプレビューできる）。手動変更の検出はドリフト検出（検出のみで自動修復はしない）。
+</details>
+
+### Q5. スタックを削除しても RDS/S3 のデータを残したい。さらに、更新で DB が置換されても旧データを失いたくない。どうする？
+<details><summary>答え</summary>
+スタック削除時は DeletionPolicy（Retain / Snapshot）。更新による置換時は UpdateReplacePolicy（Retain / Snapshot）。削除と置換は別経路なので、DB には両方を付ける。
+</details>
+
+### Q6. 更新のロールバック自体が失敗して UPDATE_ROLLBACK_FAILED になり、スタックを更新できない。どうする？
+<details><summary>答え</summary>
+原因を直して ContinueUpdateRollback を実行し、UPDATE_ROLLBACK_COMPLETE に戻す。直せない場合は resources-to-skip でロールバックできないリソースをスキップする（次の更新前にテンプレートとの不整合を解消する）。
+</details>
+
 ## 未確認
 - **ドリフト対応リソースの範囲**（Resource type support の一覧）、**ドリフト対応の変更セット（drift-aware change sets）**（該当ページの取得に失敗）
 - **Concurrency mode（Strict / Soft）の詳細**（該当ページの取得に失敗）

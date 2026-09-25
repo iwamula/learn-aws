@@ -26,6 +26,37 @@
 - 「DX 上で暗号化」→ MACsec、または DX 上の IPsec VPN（02 ノート）
 - 「すぐに（数分〜）必要」→ ホスト型（パートナーが既存回線から払い出し）。専用接続は数週間〜
 
+## Q&A（答えを隠して考えてから確認）
+### Q1. ロケーション障害にも耐え、SLA 99.99% を目指したい。どの構成？
+<details><summary>答え</summary>
+最大耐障害性モデル。複数ロケーションに、ロケーションごとに別デバイスへ終端する冗長接続を置く。SLA は専用接続を Connection wizard で注文し要件をすべて満たした場合に限る。1ロケーションに2本では足りない。
+</details>
+
+### Q2. 専用線が切れても業務を止めたくないが、コストは抑えたい。どうする？
+<details><summary>答え</summary>
+DX + Site-to-Site VPN バックアップ。オンプレ側で DX 側に高い BGP local preference を設定する。TGW 構成なら Transit VIF（DX Gateway 経由）と VPN を同じ TGW に接続する。非対称ルーティングに注意。
+</details>
+
+### Q3. リンク障害の検知を速くしたい。BGP タイマーを短くする以外の方法は？
+<details><summary>答え</summary>
+BFD を使う。AWS 側は VIF で自動有効だが、顧客側ルーターで有効化が必要。BFD と graceful restart の同時設定は非推奨。
+</details>
+
+### Q4. 帯域を増やしたい。LAG は冗長化の手段になる？
+<details><summary>答え</summary>
+LAG は同一ロケーション・同一速度の接続を束ねて帯域を増やすもので、冗長化（ロケーション分散）とは目的が違う。ロケーション障害には備えられない。
+</details>
+
+### Q5. 1本の DX で複数リージョンの VPC や多数の VPC に到達し、DX ロケーション間で拠点同士も直接つなぎたい。使う機能は？
+<details><summary>答え</summary>
+複数リージョンの VPC には Direct Connect Gateway（Private VIF + VGW、または Transit VIF + TGW）。DX ロケーション同士を AWS バックボーン経由でつなぐには SiteLink（VPC を介さない拠点間通信）。
+</details>
+
+### Q6. 数値確認。BGP の既定タイマーは？ 障害時の切り替えを急ぎで、すぐ（数分〜）回線が必要なときは？
+<details><summary>答え</summary>
+既定は hold 90 秒 / keepalive 30 秒（最小は hold 3 秒 / keepalive 1 秒）。すぐに必要ならホスト型（パートナーが既存回線から払い出し）。専用接続は数週間〜かかる。
+</details>
+
 ## 注意（ドキュメント間の不一致）
 - DX Gateway あたりの TGW 数: 公式クォータ表は **6**、re:Post の VIF 解説は「最大 3」。**クォータ表を優先するが、要再確認**（`other/fact-check-log.md` に記録）
 
