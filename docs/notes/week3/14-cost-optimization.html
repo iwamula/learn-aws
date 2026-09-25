@@ -203,7 +203,7 @@ hr{border:0;border-top:1px solid var(--line)}
 </tbody></table></div>
 <ul>
 <li><strong>スコープで価格は変わらない</strong></li>
-<li><strong>キャパシティ確保が要件なら、ゾーナル RI</strong>（または On-Demand キャパシティ予約。後者はこのノートでは未確認）。<strong>リージョナル RI は割引だけ</strong></li>
+<li><strong>キャパシティ確保が要件なら、ゾーナル RI</strong>（または On-Demand キャパシティ予約。即時利用なら期間の縛りなしでいつでも変更・キャンセルでき、キャンセルまで課金される。将来日付の予約は期間の約束があり、キャンセル料がかかる場合がある。割引は RI / Savings Plans と別）。<strong>リージョナル RI は割引だけ</strong></li>
 </ul>
 <h3 id="s7">Convertible RI の交換</h3>
 <ul>
@@ -273,7 +273,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <h3 id="s18">Intelligent-Tiering</h3>
 <ul>
 <li><strong>アクセスパターンが不明・変動する場合</strong>に自動で階層移動。<strong>小さな月額のオブジェクト監視・自動化料金</strong>がかかる</li>
-<li><strong>自動の階層</strong>: Frequent → <strong>30 日アクセスなしで Infrequent</strong> → <strong>90 日アクセスなしで Archive Instant Access</strong>（取り出し料金の有無は今回の原文範囲では未確認）</li>
+<li><strong>自動の階層</strong>: Frequent → <strong>30 日アクセスなしで Infrequent</strong> → <strong>90 日アクセスなしで Archive Instant Access</strong>（S3 Intelligent-Tiering に取り出し料金はなく、オブジェクト単位の月額のモニタリング・自動化料金がかかる。S3 User Guide）</li>
 <li><strong>任意の階層</strong>（有効化が必要）: <strong>Archive Access</strong>（最短 90 日、最大 730 日まで延長可、<strong>取り出しに数時間、標準で 3〜5 時間</strong>）、<strong>Deep Archive Access</strong>（最短 180 日）</li>
 <li><strong>アクセスされると Frequent に自動で戻る</strong>（GetObject 等）。HeadObject や List 系はアクセス扱いにならない</li>
 <li><strong>128 KB 未満のオブジェクトは監視対象外</strong>で、常に Frequent Access 階層</li>
@@ -283,7 +283,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>ライフサイクルは「ウォーターフォール」型</strong>で、<strong>下位の（より冷たい）クラスへの移行のみ</strong>（例: Standard → Standard-IA → Glacier）。逆方向は不可</li>
 <li><strong>128 KB 未満のオブジェクトは、既定でどのクラスにも移行しない</strong>（2024 年 9 月以降の既定。移行リクエスト料金が節約を上回るため）。フィルターで変更可</li>
 <li><strong>最小保存期間に満たずに移行・削除すると残りの期間分が課金</strong>される。Standard-IA / One Zone-IA は <strong>30 日</strong>、Glacier Instant Retrieval は <strong>90 日</strong>。<strong>最小期間が終わる前に次のクラスへ移すルールは 1 つのルールでは作れない</strong>（例: GIR に 4 日後 → Deep Archive に 20 日後は不可）</li>
-<li>用途の目安: <strong>アクセス頻度が低いが即時取得が必要 → Standard-IA / Glacier Instant Retrieval</strong>、<strong>再作成可能で単一 AZ でよい → One Zone-IA</strong>、<strong>数時間の取得待ちでよい長期保管 → Glacier Flexible / Deep Archive</strong>（後者の最小期間は未確認）</li>
+<li>用途の目安: <strong>アクセス頻度が低いが即時取得が必要 → Standard-IA / Glacier Instant Retrieval</strong>、<strong>再作成可能で単一 AZ でよい → One Zone-IA</strong>、<strong>数時間の取得待ちでよい長期保管 → Glacier Flexible / Deep Archive</strong>（最小保存期間は Standard-IA / One Zone-IA が 30 日、Glacier Instant / Flexible が 90 日、Deep Archive が 180 日。S3 User Guide、ノート 18 参照）</li>
 </ul>
 <h2 id="s20">Spot Instances</h2>
 <ul>

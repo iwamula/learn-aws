@@ -81,7 +81,7 @@ hr{border:0;border-top:1px solid var(--line)}
 </ul>
 </li>
 <li><strong>Pilot Light</strong>: 上記に加え、継続的な<strong>非同期</strong>リージョン間レプリケーション: S3 レプリケーション、RDS リードレプリカ、Aurora Global Database、DynamoDB グローバルテーブル、DocumentDB グローバルクラスター、ElastiCache（Redis OSS）Global Datastore（詳細は 09）<ul>
-<li>RDS（Aurora 以外）のリードレプリカ昇格は数分かかり、再起動を伴う。Aurora Global Database はセカンダリの昇格が <strong>1 分未満</strong>、レプリケーション遅延は通常 1 秒未満</li>
+<li>RDS（Aurora 以外）のリードレプリカ昇格は数分かかり、再起動を伴う。Aurora Global Database はセカンダリの昇格が通常<strong>数分</strong>（Aurora User Guide。DR ホワイトペーパーは「1 分未満」と記載）、レプリケーション遅延は通常 1 秒未満</li>
 <li>AMI は EC2 Image Builder でパイプライン化して、プライマリと DR の両リージョンにコピーする</li>
 <li>CloudFormation は擬似パラメータと Conditions で、DR リージョンには縮小版だけをデプロイできる。リージョンごとに別アカウントにするのが最も分離が強い（推奨）</li>
 </ul>
@@ -148,7 +148,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「リージョン障害時、コントロールプレーンに依存せずに切り替えたい」→ Route 53 ヘルスチェック/ARC（データプレーン）。加重の変更やトラフィックダイヤルはコントロールプレーン</li>
 <li>「DNS キャッシュに影響されずに、静的 IP のままフェイルオーバー」→ Global Accelerator</li>
 <li>「S3 の誤削除・悪意ある削除から DR 側を守る」→ バージョニング + CRR（削除マーカーは既定で複製されない）、AWS Backup のクロスアカウントコピー</li>
-<li>「Aurora で 1 分未満の昇格、リージョン障害対応」→ Aurora Global Database（RDS リードレプリカは数分）</li>
+<li>「Aurora で分単位の RTO・秒単位の RPO、リージョン障害対応」→ Aurora Global Database（RDS リードレプリカは数分）</li>
 <li>「同時書き込みを許容するマルチリージョン」→ DynamoDB グローバルテーブル（last writer wins）</li>
 </ul>
 <h2 id="s8">Q&amp;A（答えを隠して考えてから確認）</h2>

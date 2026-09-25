@@ -102,5 +102,3 @@ Application Auto Scaling で、タスクあたりのバックログ（カスタ�
 - EKS のコントロールプレーンのマルチ AZ 構成、EKS Anywhere / ECS Anywhere
 - App Runner、Elastic Beanstalk、Batch との使い分け
 
-## 疑問・確認したい点
-（ここに `Qn ...` と追記して、AIに事実確認を依頼してください）

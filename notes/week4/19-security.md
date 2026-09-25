@@ -130,4 +130,3 @@ ACM はリージョナルなので、ALB のリージョンごとに証明書を
 - **Network Firewall**: **ルールグループの種類（ステートレス / ステートフル）**、**分散型とセントラライズ型のデプロイモデル（TGW 連携）**、**TLS 検査**
 - **その他**: **Amazon Inspector / Macie / Detective**（Week1 ノート 07 の未確認項目）、**IAM Access Analyzer**、**Security Hub**
 
-## 疑問・確認したい点

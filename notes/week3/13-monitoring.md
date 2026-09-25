@@ -33,9 +33,10 @@
 |---|---|---|
 | **管理イベント** | コントロールプレーン操作（リソース作成、セキュリティ設定、ConsoleLogin など） | **記録される** |
 | **データイベント** | データプレーン（S3 オブジェクトの GetObject/PutObject、Lambda Invoke など。大量） | **記録されない** |
-| **ネットワークアクティビティイベント** | 原文に 4 種類目として記載（詳細は未確認） | 記録されない |
+| **ネットワークアクティビティイベント** | **VPC エンドポイント**の所有者向け。VPC エンドポイント経由の AWS API 呼び出しを記録し、**組織外の認証情報によるアクセス試行の検知**に使う。拒否イベント（errorCode `VpceAccessDenied`）だけの記録も可能 | **記録されない**（追加料金） |
 | **Insights イベント** | 通常パターンから外れた API 呼び出し数／エラー率 | **記録されない**（追加料金） |
 
+- **ネットワークアクティビティイベント**: 証跡とイベントデータストアの両方で設定でき、既定では記録されない。高度なイベントセレクタで `eventCategory = NetworkActivity` と `eventSource`（Equals のみ。複数サービスならセレクタを分ける）を指定する。`vpcEndpointId` でも絞り込める（証跡のみ）。対応サービスは S3、KMS、EC2、STS、Secrets Manager、DynamoDB、Lambda など多数
 - **Insights**: 過去の管理・データイベントから**ベースライン**を作り、逸脱したときに生成。**API 呼び出し率は書き込み（write）の管理イベントが対象**。エラー率は読み書きどちらでも可。**Insights は、その証跡（データストア）が対応するイベントを記録していることが前提**。Insights イベントは元のイベントと**同じリージョン**に生成。**データイベントの Insights は証跡のみで、イベントデータストアは非対応**
 
 ### ログファイル整合性検証
@@ -151,7 +152,7 @@ CloudWatch クロスアカウントオブザーバビリティ（OAM）。監視
 </details>
 
 ## 未確認
-- **ネットワークアクティビティイベントの詳細**、CloudTrail の証跡の**料金**（管理イベントの最初のコピー無料など）、S3 バケットポリシー・KMS の設定例、CloudTrail → CloudWatch Logs / EventBridge 連携
+- CloudTrail の証跡の**料金**（管理イベントの最初のコピー無料など）、S3 バケットポリシー・KMS の設定例、CloudTrail → CloudWatch Logs / EventBridge 連携
 - **CloudTrail Lake のその後の扱い**（原文注記の 2026-05-31 以降の受付終了の詳細）
 - **Config**: レコーダーの記録対象・頻度（継続 / 日次）、コンフォーマンスパックの Region 別の詳細、アグリゲーターの認可手順の詳細、**Config の料金**、管理ルール vs カスタムルール（Lambda / Guard）
 - **CloudWatch**: メトリクスの解像度・保持期間、Logs Insights、メトリクスフィルター、**異常検知アラーム**、EMF、Synthetics、Container Insights、Application Signals、Contributor Insights、**クロスアカウント・クロスリージョンダッシュボード**、**ログのエクスポート（S3）と保持期間**、**サブスクリプションの宛先の作成手順（Kinesis / Firehose / Lambda）**、データ集約の上限・料金

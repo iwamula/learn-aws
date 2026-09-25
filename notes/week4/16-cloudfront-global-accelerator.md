@@ -138,4 +138,3 @@ Global Accelerator。IPv4 の静的 IP が 2 つ（デュアルスタックは�
 - **Global Accelerator**: **料金（固定 + データ転送プレミアム）**、**ヘルスチェックの間隔・しきい値・フェイルオーバー時間の数値**、**接続の衝突（connection collisions）の詳細**、**BYOIP の要件**、**Global Accelerator と CloudFront の併用**、**フローログ**、**IPv6 の対応範囲**
 - **Route 53 との使い分け**: レイテンシールーティング + ヘルスチェックによる構成との比較（Week1 / Week2 のノートに一部あり）
 
-## 疑問・確認したい点

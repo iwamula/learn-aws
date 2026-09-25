@@ -179,7 +179,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <ul>
 <li>CloudFront Functions の用途: <strong>キャッシュキーの正規化、ヘッダー操作、URL のリダイレクト / 書き換え、JWT などのトークン検証</strong></li>
 <li>Lambda@Edge の用途: 数ミリ秒以上かかる処理、CPU / メモリの調整、サードパーティライブラリ（AWS SDK を含む）、外部サービスへのネットワークアクセス、ファイルシステムやリクエストボディへのアクセス</li>
-<li>Lambda@Edge は<strong>単一のリージョンに発行</strong>し（どのリージョンかは未確認）、ディストリビューションに関連付けると<strong>世界中に自動でレプリケート</strong>される</li>
+<li>Lambda@Edge は<strong>単一のリージョンに発行</strong>し（<strong>us-east-1（バージニア北部）</strong>。CloudFront Developer Guide）、ディストリビューションに関連付けると<strong>世界中に自動でレプリケート</strong>される</li>
 </ul>
 <h2 id="s7">CloudFront: その他（HTTPS・暗号化・地理的制限）</h2>
 <ul>
@@ -205,7 +205,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「グローバルなゲームの UDP トラフィック」→ <strong>Global Accelerator</strong></li>
 <li>「特定のプレイヤーを特定のゲームサーバー（EC2）に割り当てる」→ <strong>カスタムルーティングアクセラレーター</strong></li>
 <li>「S3 バケットを直接アクセス不可にして CloudFront 経由のみ、SSE-KMS も使う」→ <strong>OAC</strong></li>
-<li>「S3 が静的ウェブサイトエンドポイント」→ <strong>OAC は使えない</strong>（カスタムオリジン扱い。代替手段は未確認）</li>
+<li>「S3 が静的ウェブサイトエンドポイント」→ <strong>OAC は使えない</strong>（カスタムオリジン扱いで OAC / OAI は不可。原文）。OAC で保護するには通常のバケット（ウェブサイトエンドポイントでない）にする。ウェブサイトエンドポイントを使う場合の保護手段は未確認</li>
 <li>「プライベートサブネットの ALB を CloudFront 経由のみで公開」→ <strong>VPC オリジン</strong>（またはマネージドプレフィックスリスト）</li>
 <li>「会員が有料動画の HLS（多数のファイル）を見る。URL は変えたくない」→ <strong>署名付き Cookie</strong></li>
 <li>「単一のファイルダウンロードを期限付きで共有」→ <strong>署名付き URL</strong></li>
@@ -213,7 +213,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「エッジで URL 書き換えや JWT 検証を大規模・低遅延で」→ <strong>CloudFront Functions</strong></li>
 <li>「エッジで外部 API / DB を呼ぶ、リクエストボディを読む」→ <strong>Lambda@Edge</strong></li>
 <li>「カード番号だけをエッジで暗号化して、バックエンドの途中で見えないように」→ <strong>フィールドレベル暗号化</strong></li>
-<li>「特定の国からのアクセスを遮断」→ <strong>CloudFront の地理的制限</strong>（ファイル単位・都市単位ならサードパーティ）（AWS WAF での地理的な制御は未確認）</li>
+<li>「特定の国からのアクセスを遮断」→ <strong>CloudFront の地理的制限</strong>（ファイル単位・都市単位ならサードパーティ）（AWS WAF にも地理的一致（geo match）ルールステートメントがある。WAF Developer Guide。CloudFront の地理的制限との使い分けの詳細は未確認）</li>
 <li>「CloudFront で独自ドメインの HTTPS。証明書は ACM」→ <strong>us-east-1 で発行</strong></li>
 <li>「CloudFront のオリジンフェイルオーバーで POST は？」→ <strong>フェイルオーバーしない</strong>（GET / HEAD / OPTIONS のみ）</li>
 </ul>

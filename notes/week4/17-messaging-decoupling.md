@@ -128,4 +128,3 @@ DLQ を設定する。キュー種別は元のキューと同じにする（FIFO
 - **Step Functions**: **Retry / Catch の記法**、Map の同時実行数、Express の同期実行（API Gateway 経由）、**Distributed Map の上限**、Standard の開始レートやクォータの公式値（ブログの数値を採用）、**Express の履歴が CloudWatch Logs になる詳細**
 - **API Gateway**: **統合タイムアウト（29 秒の既定と引き上げ）**、ペイロード上限、**Lambda オーソライザーのキャッシュ**、Cognito オーソライザー、**リソースポリシーによるクロスアカウント / IP 制限**、**カスタムドメインと ACM（エッジ最適化は us-east-1）**、**ステージ変数、カナリア**、**HTTP API のスロットリング**、CloudFront / WAF との組み合わせ、mTLS
 
-## 疑問・確認したい点

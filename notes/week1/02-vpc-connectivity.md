@@ -61,5 +61,3 @@ Transit VIF + Direct Connect Gateway + Transit Gateway。Private VIF は1つの 
 標準は1トンネル最大 1.25Gbps。Large Bandwidth Tunnel は最大 5Gbps だが、TGW / Cloud WAN 接続のみ。TGW に終端すれば ECMP で複数トンネルの帯域を束ねることもできる。
 </details>
 
-## 疑問・確認したい点
-（ここに `Qn ...` と追記して、AIに事実確認を依頼してください）

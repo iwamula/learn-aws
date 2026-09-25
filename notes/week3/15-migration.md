@@ -122,5 +122,3 @@ Relocate（新規ハードウェアもアプリ書き換えも不要で最速）
 - **MGN**: **エージェントのインストール要件、レプリケーションサーバーの構成、ステージング領域のコスト、cutover の詳細、ネットワーク要件（TCP 1500 など）**、**VMware 環境向けのエージェントレスレプリケーション**
 - **その他の移行サービス**: **AWS Transfer Family**、**Migration Hub / Application Discovery Service / Migration Evaluator**、**AWS Transform（メインフレーム / .NET / VMware）**、**Mainframe Modernization**、**App2Container**、**VMware Cloud on AWS / Amazon EVS**、**Server Migration Service（終了済み）**、**CloudEndure**、**VM Import/Export**、**DMS を使わない DB 移行（ネイティブのバックアップ、Aurora リードレプリカ）**、**ポートフォリオ評価・移行計画（MAP、Migration Acceleration Program）**
 
-## 疑問・確認したい点
-

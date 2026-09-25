@@ -65,8 +65,8 @@ hr{border:0;border-top:1px solid var(--line)}
 <ul>
 <li><strong>DX + Site-to-Site VPN バックアップ</strong>: 通常は DX、障害時は VPN へフェイルオーバー。オンプレ側で DX 側に高い BGP local preference を設定する。TGW 構成なら Transit VIF（DX Gateway 経由）と VPN を同じ TGW に接続する。非対称ルーティングに注意</li>
 <li><strong>BFD</strong>: AWS 側では非同期 BFD が VIF で自動有効。<strong>顧客側ルーターで有効化が必要</strong>。BGP の既定タイマーは hold 90 秒 / keepalive 30 秒（最小は hold 3 秒 / keepalive 1 秒）で、BFD の方が検出が速い。<strong>BFD と graceful restart の同時設定は非推奨</strong>（フェイルオーバーが遅くなる）</li>
-<li><strong>LAG</strong>: 同一ロケーション・同一速度の接続を束ねて帯域を増やす（1本の論理接続）。冗長化（ロケーション分散）とは目的が違う。専用接続は LAG あたり最大 4（100G 未満）/ 2（100G）</li>
-<li><strong>Direct Connect Gateway</strong>: 1つの DX から複数リージョンの VPC（Private VIF + VGW）または TGW（Transit VIF）へ到達できる。VIF は Transit VIF は専用接続あたり最大 4、Private/Public VIF は 50（合計 51）</li>
+<li><strong>LAG</strong>: LACP で複数の専用接続を束ねて 1 本の論理接続にする。条件は「すべて専用接続」「同じ帯域」「<strong>同じ Direct Connect エンドポイント（同一ロケーション・同一 AWS デバイス）に終端</strong>」。上限は 100G/400G が 2 本、それ未満が 4 本。全接続が Active/Active。MLAG は非対応。帯域増とポート障害への耐性は得られるが、ロケーション障害には備えられない</li>
+<li><strong>Direct Connect Gateway</strong>: 1つの DX から複数リージョンの VPC（Private VIF + VGW）または TGW（Transit VIF）へ到達できる。VIF は Transit VIF は専用接続あたり最大 4、Private/Public VIF は 50（合計 54）</li>
 <li><strong>SiteLink</strong>: DX ロケーション同士を AWS バックボーン経由で直接つなぐ（VPC を介さない拠点間通信）</li>
 </ul>
 <h2 id="s2">判断ポイント</h2>
@@ -112,7 +112,7 @@ LAG は同一ロケーション・同一速度の接続を束ねて帯域を増�
 
 <h2 id="s10">注意（ドキュメント間の不一致）</h2>
 <ul>
-<li>DX Gateway あたりの TGW 数: 公式クォータ表は <strong>6</strong>、re:Post の VIF 解説は「最大 3」。<strong>クォータ表を優先するが、要再確認</strong>（<code>other/fact-check-log.md</code> に記録）</li>
+<li>DX Gateway あたりの TGW 数は <strong>6</strong>（調整不可）。DX クォータ表・TGW クォータ表・re:Post のナレッジセンター 2 件が一致しており、「最大 3」とする re:Post の VIF 解説の記述は他と食い違う（3 は誤りと判断）</li>
 </ul>
 <h2 id="s11">疑問・確認したい点</h2>
 <p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>

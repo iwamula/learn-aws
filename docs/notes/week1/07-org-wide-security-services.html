@@ -66,14 +66,29 @@ hr{border:0;border-top:1px solid var(--line)}
 <td>委任管理者でも組織全体を集約可能。<strong>メンバーで Config が有効なことが前提</strong>。Config ルールは API で組織全体のアカウントに展開できる</td>
 </tr>
 <tr>
-<td><strong>Macie / Inspector / Detective / Firewall Manager</strong></td>
-<td>同様に委任管理者方式</td>
-<td><strong>未確認</strong>（今回は原文で裏取りしていない。次回確認）</td>
+<td><strong>Macie</strong></td>
+<td>管理アカウントが委任管理者を指定（信頼されたアクセスが必要。コンソールで指定すれば自動で有効化）</td>
+<td><strong>リージョンサービス</strong>で、委任管理者の指定もリージョンごと。1 つの管理者アカウントで最大 5,000 アカウントを管理（AWS ブログ）</td>
+</tr>
+<tr>
+<td><strong>Inspector</strong></td>
+<td>管理アカウントが委任管理者を指定。委任管理者はメンバーのスキャン有効化・組織全体の検出結果の集約・抑制ルールの管理ができる</td>
+<td><code>inspector2:enableDelegatedAdminAccount</code> を<strong>使うリージョンごとに</strong>呼ぶ。Organizations のポリシーで有効化を一元管理する方式もある（メンバーは API で変更不可）</td>
+</tr>
+<tr>
+<td><strong>Detective</strong></td>
+<td>管理アカウントが<strong>リージョンごとに</strong> Detective 管理者を指定すると、Organizations の委任管理者にもなる</td>
+<td>管理アカウント自身を Detective 管理者にもできる（その場合は委任管理者にならない）。Organizations に委任管理者がいれば、その委任管理者か管理アカウントのどちらかしか選べない</td>
+</tr>
+<tr>
+<td><strong>Firewall Manager</strong></td>
+<td>管理アカウントが<strong>デフォルト管理者</strong>を 1 つ指定すると、自動で Organizations の委任管理者になる</td>
+<td>追加で最大 9 つの管理者（管理範囲を OU / リージョン / ポリシー種別で制限）を作れる。デフォルト管理者の変更は既存管理者が先に自分を revoke する必要がある（ポリシーも削除される）</td>
 </tr>
 </tbody></table></div>
 <h2 id="s2">判断ポイント</h2>
 <ul>
-<li>「全アカウント・全リージョンの API ログを1か所に、改ざんを防ぎたい」→ 組織証跡 + Log Archive アカウントの S3（改ざん防止の具体策は別途確認）</li>
+<li>「全アカウント・全リージョンの API ログを1か所に、改ざんを防ぎたい」→ 組織証跡 + Log Archive アカウントの S3 + <strong>ログファイルの整合性検証</strong>（改ざん・削除の検知）。改ざん・削除の防止は S3 Object Lock（AWS SRA Log Archive の記述）、ダイジェストファイルの保護強化には S3 MFA Delete（CloudTrail 整合性検証ドキュメント）</li>
 <li>「新規アカウントでも GuardDuty を自動で有効に」→ 委任管理者で自動有効化（<code>NEW</code> か <code>ALL</code>）</li>
 <li>「Security Hub の標準/コントロールを全アカウントで統一し、勝手に変更させない」→ 中央設定ポリシー</li>
 <li>「全アカウントのリソース構成とコンプライアンスを1画面で」→ Config 組織アグリゲーター</li>

@@ -66,6 +66,3 @@ Identity Center の ID ソースに AD を選ぶ。AWS Managed Microsoft AD ま�
 <details><summary>答え</summary>
 Identity Center はワークフォース向けなので、顧客向けアプリの認証は Cognito を使う。管理アカウントの root と管理者は、コントロールが拒否する操作も実行できる（意図的な例外で、SCP が管理アカウントに効かないのと同じ発想）。
 </details>
-
-## 疑問・確認したい点
-（ここに `Qn ...` と追記して、AIに事実確認を依頼してください）

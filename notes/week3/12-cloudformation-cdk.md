@@ -152,5 +152,3 @@ Failure tolerance（リージョンごとに許容する失敗数）を設定し
 - **CDK: `cdk diff` / `cdk deploy` / アセット / Aspects / CDK Pipelines**、ブートストラップで作られる IAM ロールの種類
 - **AWS Service Catalog、Elastic Beanstalk、OpsWorks との使い分け**、**Blue/Green（CodeDeploy）**
 
-## 疑問・確認したい点
-（ここに `Qn ...` と追記して、AIに事実確認を依頼してください）

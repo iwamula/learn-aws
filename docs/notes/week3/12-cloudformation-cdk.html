@@ -235,7 +235,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「デプロイ前に置換・削除されるリソースを確認」→ 変更セット。「手動変更の検出」→ ドリフト検出（修復はしない）</li>
 <li>「スタック削除後も DB/S3 のデータを残す」→ DeletionPolicy（Retain / Snapshot）。「更新による置換でデータを失いたくない」→ UpdateReplacePolicy</li>
 <li>「更新ロールバックが失敗して更新できない」→ ContinueUpdateRollback（必要なら resources-to-skip）</li>
-<li>「特定リソースを誤って更新・削除しない」→ スタックポリシー（更新時のみ）。削除の防止は DeletionPolicy や終了保護（終了保護は今回未確認）</li>
+<li>「特定リソースを誤って更新・削除しない」→ スタックポリシー（更新時のみ）。削除の防止は DeletionPolicy や終了保護（終了保護: 有効にするとスタック削除が失敗する。既定は無効。ネストスタックには親の設定が引き継がれ、ネストスタック単独では変更できない。ただし親スタックの更新でネストスタックが削除される場合は削除される）</li>
 <li>「別アカウント・別リージョンのスタック出力を参照」→ <code>Fn::GetStackOutput</code>（Export/ImportValue は同一アカウント・リージョン限定）</li>
 <li>「EC2 内のソフトのインストール完了を待つ」→ CreationPolicy + cfn-signal</li>
 </ul>

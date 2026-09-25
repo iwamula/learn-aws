@@ -27,7 +27,7 @@
   - EC2 バックアップのメタデータ（インスタンスタイプ、VPC、SG、IAM ロールなど）は**同一リージョンへのリストア時のみ**使われる
   - S3: バージョニング + CRR。既定ではソースで削除しても**削除マーカーはソース側にだけ付き、DR 側には複製されない**ので、悪意ある削除から DR 側を守れる
 - **Pilot Light**: 上記に加え、継続的な**非同期**リージョン間レプリケーション: S3 レプリケーション、RDS リードレプリカ、Aurora Global Database、DynamoDB グローバルテーブル、DocumentDB グローバルクラスター、ElastiCache（Redis OSS）Global Datastore（詳細は 09）
-  - RDS（Aurora 以外）のリードレプリカ昇格は数分かかり、再起動を伴う。Aurora Global Database はセカンダリの昇格が **1 分未満**、レプリケーション遅延は通常 1 秒未満
+  - RDS（Aurora 以外）のリードレプリカ昇格は数分かかり、再起動を伴う。Aurora Global Database はセカンダリの昇格が通常**数分**（Aurora User Guide。DR ホワイトペーパーは「1 分未満」と記載）、レプリケーション遅延は通常 1 秒未満
   - AMI は EC2 Image Builder でパイプライン化して、プライマリと DR の両リージョンにコピーする
   - CloudFormation は擬似パラメータと Conditions で、DR リージョンには縮小版だけをデプロイできる。リージョンごとに別アカウントにするのが最も分離が強い（推奨）
 - **Warm Standby**: Auto Scaling で DR リージョンを本番容量までスケールアウト（EC2 の希望容量を上げる）。DR リージョンの**サービスクォータ**を事前に引き上げておく
@@ -70,7 +70,7 @@
 - 「リージョン障害時、コントロールプレーンに依存せずに切り替えたい」→ Route 53 ヘルスチェック/ARC（データプレーン）。加重の変更やトラフィックダイヤルはコントロールプレーン
 - 「DNS キャッシュに影響されずに、静的 IP のままフェイルオーバー」→ Global Accelerator
 - 「S3 の誤削除・悪意ある削除から DR 側を守る」→ バージョニング + CRR（削除マーカーは既定で複製されない）、AWS Backup のクロスアカウントコピー
-- 「Aurora で 1 分未満の昇格、リージョン障害対応」→ Aurora Global Database（RDS リードレプリカは数分）
+- 「Aurora で分単位の RTO・秒単位の RPO、リージョン障害対応」→ Aurora Global Database（RDS リードレプリカは数分）
 - 「同時書き込みを許容するマルチリージョン」→ DynamoDB グローバルテーブル（last writer wins）
 
 ## Q&A（答えを隠して考えてから確認）
@@ -109,5 +109,3 @@ AWS Elastic Disaster Recovery（DRS）。ブロックレベルで継続レプリ
 - Route 53 フェイルオーバーレコード（Primary/Secondary、Evaluate Target Health）の詳細
 - ARC のルーティングコントロール/準備状況チェックの詳細（コントロールプレーンのクラスターが5リージョン冗長という点など）
 
-## 疑問・確認したい点
-（ここに `Qn ...` と追記して、AIに事実確認を依頼してください）

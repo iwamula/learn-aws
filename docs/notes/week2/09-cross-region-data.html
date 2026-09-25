@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">比較表</a><a class="h2" href="#s1">Aurora Global Database</a><a class="h2" href="#s2">DynamoDB グローバルテーブル</a><a class="h2" href="#s3">S3 レプリケーション</a><a class="h2" href="#s4">RDS クロスリージョンリードレプリカ（Aurora 以外）</a><a class="h2" href="#s5">ElastiCache Global Datastore（Valkey / Redis OSS）</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s8">Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を 1 分未満、レプリケーション遅延を 1 秒未満にしたい。どうする？</a><a class="h3" href="#s9">Q2. Aurora Global Database で、計画的なリージョンローテーションをデータ損失なしで行いたい。どの操作？</a><a class="h3" href="#s10">Q3. マルチリージョンで RPO ゼロ、どのレプリカでも強い整合性のある読み取りをしたい。どうする？</a><a class="h3" href="#s11">Q4. S3 のリージョン間コピーを SLA つきで 15 分以内にしたい。すでにあるオブジェクトもコピーしたい。どうする？</a><a class="h3" href="#s12">Q5. 暗号化した RDS のクロスリージョンリードレプリカを作りたい。条件は？</a><a class="h3" href="#s13">Q6. ElastiCache Global Datastore でリージョン障害が起きた。自動でフェイルオーバーされる？</a><a class="h2" href="#s14">未確認</a><a class="h2" href="#s15">疑問・確認したい点</a></nav><main><h1>Week2-9: データ層のリージョン間構成</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">比較表</a><a class="h2" href="#s1">Aurora Global Database</a><a class="h2" href="#s2">DynamoDB グローバルテーブル</a><a class="h2" href="#s3">S3 レプリケーション</a><a class="h2" href="#s4">RDS クロスリージョンリードレプリカ（Aurora 以外）</a><a class="h2" href="#s5">ElastiCache Global Datastore（Valkey / Redis OSS）</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s8">Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を数分以内、レプリケーション遅延を 1 秒未満にしたい。どうする？</a><a class="h3" href="#s9">Q2. Aurora Global Database で、計画的なリージョンローテーションをデータ損失なしで行いたい。どの操作？</a><a class="h3" href="#s10">Q3. マルチリージョンで RPO ゼロ、どのレプリカでも強い整合性のある読み取りをしたい。どうする？</a><a class="h3" href="#s11">Q4. S3 のリージョン間コピーを SLA つきで 15 分以内にしたい。すでにあるオブジェクトもコピーしたい。どうする？</a><a class="h3" href="#s12">Q5. 暗号化した RDS のクロスリージョンリードレプリカを作りたい。条件は？</a><a class="h3" href="#s13">Q6. ElastiCache Global Datastore でリージョン障害が起きた。自動でフェイルオーバーされる？</a><a class="h2" href="#s14">未確認</a><a class="h2" href="#s15">疑問・確認したい点</a></nav><main><h1>Week2-9: データ層のリージョン間構成</h1>
 <p>出典（2026-09-25 に原文を curl で確認）: Aurora User Guide「Using Amazon Aurora Global Database」、DynamoDB Developer Guide「Global tables」「How DynamoDB global tables work」、S3 User Guide「Replicating objects」「What does Amazon S3 replicate?」「Requirements and considerations for replication」、RDS User Guide「Cross-Region read replicas」、ElastiCache User Guide「Replication across AWS Regions using global datastores」。DR の位置づけは 08 ノート</p>
 <h2 id="s0">比較表</h2>
 <div class="tbl"><table>
@@ -43,7 +43,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <td>Aurora Global Database</td>
 <td>ストレージ層の専用インフラで非同期レプリケーション。遅延は通常 1 秒未満</td>
 <td>プライマリリージョンのみ。セカンダリからの書き込みは write forwarding で転送</td>
-<td>プライマリ 1 + セカンダリ最大 10 リージョン。障害時のセカンダリ昇格は 1 分未満（08 ノートの DR ホワイトペーパーより）</td>
+<td>プライマリ 1 + セカンダリ最大 10 リージョン。障害時のフェイルオーバー（セカンダリの昇格）は通常数分（Aurora User Guide。「1 分未満」は DR ホワイトペーパーの記述で、User Guide では確認できず）</td>
 </tr>
 <tr>
 <td>DynamoDB グローバルテーブル</td>
@@ -131,7 +131,7 @@ hr{border:0;border-top:1px solid var(--line)}
 </ul>
 <h2 id="s6">判断ポイント</h2>
 <ul>
-<li>「RDB のリージョン間 DR で、昇格 1 分未満・遅延 1 秒未満」→ Aurora Global Database</li>
+<li>「RDB のリージョン間 DR で、RTO が分単位・遅延 1 秒未満」→ Aurora Global Database</li>
 <li>「計画的なリージョン移行で、データ損失なし」→ Aurora のスイッチオーバー</li>
 <li>「リージョン障害からの復旧」→ Aurora のフェイルオーバー</li>
 <li>「セカンダリリージョンのアプリから書き込みたい（書き込みはプライマリで実行）」→ Aurora write forwarding</li>
@@ -145,9 +145,9 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「暗号化した RDS のクロスリージョンレプリカ」→ ソースが暗号化済み + 宛先リージョンの KMS キーを指定</li>
 </ul>
 <h2 id="s7">Q&amp;A（答えを隠して考えてから確認）</h2>
-<h3 id="s8">Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を 1 分未満、レプリケーション遅延を 1 秒未満にしたい。どうする？</h3>
+<h3 id="s8">Q1. RDB のリージョン間 DR で、障害時のセカンダリ昇格を数分以内、レプリケーション遅延を 1 秒未満にしたい。どうする？</h3>
 <details><summary>答え</summary>
-Aurora Global Database。ストレージ層で非同期レプリケーションする（昇格 1 分未満は DR ホワイトペーパー由来で、Aurora User Guide では未確認）。RDS（Aurora 以外）のクロスリージョンリードレプリカは昇格に数分かかり再起動も伴う。
+Aurora Global Database。ストレージ層で非同期レプリケーションする（Aurora User Guide では RTO は分単位、RPO は通常秒単位、フェイルオーバーで新プライマリは通常数分で昇格）。RDS（Aurora 以外）のクロスリージョンリードレプリカは昇格に数分かかり再起動も伴う。
 </details>
 
 <h3 id="s9">Q2. Aurora Global Database で、計画的なリージョンローテーションをデータ損失なしで行いたい。どの操作？</h3>
@@ -179,7 +179,7 @@ CRR + S3 RTC（99.99% を 15 分以内）。既存オブジェクトは S3 Batch
 <ul>
 <li>Aurora write forwarding の整合性レベル（セッション/結果整合など）と制約</li>
 <li>Aurora PostgreSQL の RPO 管理機能（<code>rds.global_db_rpo</code>）の詳細</li>
-<li>Aurora Global Database の「リージョン障害時に昇格 1 分未満」の数値は DR ホワイトペーパー由来で、Aurora User Guide の該当ページでは今回未確認</li>
+<li>「昇格 1 分未満」は Aurora User Guide の原文では確認できず（原文は「RTO は分単位」「通常数分で昇格」）。DR ホワイトペーパーの数値は試験用の目安として扱い、断定しない</li>
 <li>S3 のクロスアカウントレプリケーションの所有者上書き設定</li>
 <li>DynamoDB MRSC の対応リージョン一覧（原文は限定リージョンとだけ確認）</li>
 </ul>

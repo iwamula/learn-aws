@@ -115,8 +115,8 @@ hr{border:0;border-top:1px solid var(--line)}
 </tr>
 <tr>
 <td><strong>ネットワークアクティビティイベント</strong></td>
-<td>原文に 4 種類目として記載（詳細は未確認）</td>
-<td>記録されない</td>
+<td><strong>VPC エンドポイント</strong>の所有者向け。VPC エンドポイント経由の AWS API 呼び出しを記録し、<strong>組織外の認証情報によるアクセス試行の検知</strong>に使う。拒否イベント（errorCode <code>VpceAccessDenied</code>）だけの記録も可能</td>
+<td><strong>記録されない</strong>（追加料金）</td>
 </tr>
 <tr>
 <td><strong>Insights イベント</strong></td>
@@ -125,6 +125,7 @@ hr{border:0;border-top:1px solid var(--line)}
 </tr>
 </tbody></table></div>
 <ul>
+<li><strong>ネットワークアクティビティイベント</strong>: 証跡とイベントデータストアの両方で設定でき、既定では記録されない。高度なイベントセレクタで <code>eventCategory = NetworkActivity</code> と <code>eventSource</code>（Equals のみ。複数サービスならセレクタを分ける）を指定する。<code>vpcEndpointId</code> でも絞り込める（証跡のみ）。対応サービスは S3、KMS、EC2、STS、Secrets Manager、DynamoDB、Lambda など多数</li>
 <li><strong>Insights</strong>: 過去の管理・データイベントから<strong>ベースライン</strong>を作り、逸脱したときに生成。<strong>API 呼び出し率は書き込み（write）の管理イベントが対象</strong>。エラー率は読み書きどちらでも可。<strong>Insights は、その証跡（データストア）が対応するイベントを記録していることが前提</strong>。Insights イベントは元のイベントと<strong>同じリージョン</strong>に生成。<strong>データイベントの Insights は証跡のみで、イベントデータストアは非対応</strong></li>
 </ul>
 <h3 id="s3">ログファイル整合性検証</h3>
@@ -265,7 +266,7 @@ CloudWatch クロスアカウントオブザーバビリティ（OAM）。監視
 
 <h2 id="s21">未確認</h2>
 <ul>
-<li><strong>ネットワークアクティビティイベントの詳細</strong>、CloudTrail の証跡の<strong>料金</strong>（管理イベントの最初のコピー無料など）、S3 バケットポリシー・KMS の設定例、CloudTrail → CloudWatch Logs / EventBridge 連携</li>
+<li>CloudTrail の証跡の<strong>料金</strong>（管理イベントの最初のコピー無料など）、S3 バケットポリシー・KMS の設定例、CloudTrail → CloudWatch Logs / EventBridge 連携</li>
 <li><strong>CloudTrail Lake のその後の扱い</strong>（原文注記の 2026-05-31 以降の受付終了の詳細）</li>
 <li><strong>Config</strong>: レコーダーの記録対象・頻度（継続 / 日次）、コンフォーマンスパックの Region 別の詳細、アグリゲーターの認可手順の詳細、<strong>Config の料金</strong>、管理ルール vs カスタムルール（Lambda / Guard）</li>
 <li><strong>CloudWatch</strong>: メトリクスの解像度・保持期間、Logs Insights、メトリクスフィルター、<strong>異常検知アラーム</strong>、EMF、Synthetics、Container Insights、Application Signals、Contributor Insights、<strong>クロスアカウント・クロスリージョンダッシュボード</strong>、<strong>ログのエクスポート（S3）と保持期間</strong>、<strong>サブスクリプションの宛先の作成手順（Kinesis / Firehose / Lambda）</strong>、データ集約の上限・料金</li>

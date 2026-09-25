@@ -45,7 +45,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <tr>
 <td><strong>Transit Gateway (TGW)</strong></td>
 <td>ハブ&amp;スポーク。数千VPCと VPN/DX を集約。ルートテーブルでセグメント分離可。リージョン間はTGWピアリング。RAMで共有</td>
-<td>時間課金+データ処理課金。TGWピアリングはルートを<strong>静的</strong>に設定。上限: 1TGWあたりアタッチメント5,000、ルート合計10,000、ルートテーブル20、ピアリング50（いずれも既定値）。VPCアタッチメントはAZあたり最大100Gbps</td>
+<td>時間課金+データ処理課金。TGWピアリングはルートを<strong>静的</strong>に設定（ピアリングアタッチメントを指す静的ルートをルートテーブルに追加。伝播は不可。各 TGW に一意の ASN を推奨）。上限: 1TGWあたりアタッチメント5,000、ルート合計10,000、ルートテーブル20、ピアリング50（いずれも既定値）。VPCアタッチメントはAZあたり最大100Gbps</td>
 </tr>
 <tr>
 <td><strong>PrivateLink（インターフェイスVPCエンドポイント）</strong></td>

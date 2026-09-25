@@ -127,4 +127,3 @@ Multi-Region Access Point（MRAP）に CRR を組み合わせる。Transfer Acce
 - **EFS**: **パフォーマンスモード（General Purpose / Max I/O）**、**リージョン間レプリケーション**、**マウントターゲットとセキュリティグループ**、**アクセスポイント**、**転送中 / 保管時の暗号化**、**EFS の料金**、**AWS DataSync でのデータ移行**
 - **選定全般**: EBS / インスタンスストア / EFS / FSx の総合比較
 
-## 疑問・確認したい点

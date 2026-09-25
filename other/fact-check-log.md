@@ -251,4 +251,30 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 16: S3 ウェブサイトエンドポイントと OAC | ✅ OAC / OAI 不可（カスタムオリジン）。代替の保護手段は未確認のまま |
 | 16: WAF の geo match | ✅ ルールステートメントが存在。CloudFront 地理的制限との使い分けは未確認 |
 | 16: CloudFront に静的 IP がないこと | 未確認（Global Accelerator が既定で静的 IP 2 個を提供する点のみ ✅） |
-| 上記以外の 08〜20 の未確認項目（Aurora Global 昇格 1 分未満、CloudTrail ネットワークアクティビティイベント、Kinesis 料金、SQS/SNS/EventBridge 上限比較など） | 未確認（今回対象外） |
+| 上記以外の 08〜20 の未確認項目（CloudTrail ネットワークアクティビティイベント、Kinesis 料金、SQS/SNS/EventBridge 上限比較など） | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第2弾: Aurora Global の昇格時間）
+根拠: 公式ドキュメント原文（curl）— Aurora User Guide「Aurora Global Database」「Using switchover or failover in Amazon Aurora Global Database」
+
+| 項目 | 結果 |
+|---|---|
+| 08/09: Aurora Global のセカンダリ昇格は 1 分未満 | ⚠️ User Guide 原文では確認できず。原文は「RTO は分単位」「RPO は通常秒単位」「選ばれたセカンダリは通常数分でプライマリになる」。「1 分未満」は DR ホワイトペーパー由来の記述として扱い、ノート 08/09 を「通常数分」に訂正 |
+| 09: Aurora PostgreSQL の RPO 管理 | ➕ rds.global_db_rpo は 20 秒〜2,147,483,647 秒。少なくとも 1 つのセカンダリが RPO 内になるようコミットを制御し、全セカンダリが超過するとプライマリのトランザクションをブロック。switchover は RPO 0、failover は RPO が秒単位の非ゼロ（詳細のノート反映は未実施） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第3弾: CloudTrail ネットワークアクティビティイベント）
+根拠: 公式ドキュメント原文（curl）— CloudTrail User Guide「Logging network activity events」
+
+| 項目 | 結果 |
+|---|---|
+| 13: ネットワークアクティビティイベント | ✅ VPC エンドポイント所有者が、VPC エンドポイント経由の AWS API 呼び出しを記録するイベント。組織外の認証情報によるアクセス試行の検知に使える。証跡・イベントデータストアの両方で設定可、既定は記録されず、追加料金あり。高度なイベントセレクタは eventCategory=NetworkActivity と eventSource（Equals のみ）が必須。errorCode で指定できる値は VpceAccessDenied のみ。vpcEndpointId での絞り込みは証跡のみ。対応サービスは S3/KMS/EC2/STS/Secrets Manager/DynamoDB/Lambda など多数 |
+| 13: 上記以外（証跡の料金の詳細、CloudWatch Logs / EventBridge 連携など） | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第4弾: Kinesis のモード切り替え・料金）
+根拠: 公式ドキュメント原文（curl）— Kinesis Data Streams Developer Guide「Choose the right mode to stream in」（how-do-i-size-a-stream.html）
+
+| 項目 | 結果 |
+|---|---|
+| 20: オンデマンド↔プロビジョニングの切り替え制約 | ✅ ストリームごとに 24 時間に 2 回。無停止、ステータスは Updating→Active。切り替え直後のシャード数は引き継ぎ |
+| 20: On-demand Advantage の条件 | ✅ アカウント単位、最低 25 MiB/秒の取り込み・取得を約束（不足分は割引単価で課金）、有効化後 24 時間は無効化不可、Standard へ戻す前にウォームスループット削除が必要。ストリームごとの固定料金なし、取り込み・取得・延長保持は Standard より 60% 以上低い |
+| 20: オンデマンド vs プロビジョニングの判断 | ✅ 原文でオンデマンドは予測不能・変動大、プロビジョニングは予測可能なトラフィック向け。ノートの「料金は未確認」注記を更新 |
+| 20: Kinesis の具体的な単価 | 未確認（Developer Guide に金額なし。料金ページは今回未取得。aws-mcp は権限未付与で使えず） |
