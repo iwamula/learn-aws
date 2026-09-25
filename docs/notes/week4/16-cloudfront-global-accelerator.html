@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week4-16: CloudFront と Global Accelerator（エッジ配信・オリジン保護・フェイルオーバー）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">CloudFront と Global Accelerator の違い</a><a class="h2" href="#s2">CloudFront: S3 オリジンの保護（OAC）</a><a class="h2" href="#s3">CloudFront: ALB / EC2 オリジンの保護</a><a class="h2" href="#s4">CloudFront: 署名付き URL と署名付き Cookie</a><a class="h2" href="#s5">CloudFront: オリジンフェイルオーバー（詳細）</a><a class="h2" href="#s6">CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）</a><a class="h2" href="#s7">CloudFront: その他（HTTPS・暗号化・地理的制限）</a><a class="h2" href="#s8">Global Accelerator</a><a class="h2" href="#s9">判断ポイント</a><a class="h2" href="#s10">未確認</a><a class="h2" href="#s11">疑問・確認したい点</a></nav><main><h1>Week4-16: CloudFront と Global Accelerator（エッジ配信・オリジン保護・フェイルオーバー）</h1>
+<p>出典（2026-09-26 に aws-mcp の search_documentation / read_documentation で原文を確認）: CloudFront Developer Guide「Restrict access to an Amazon S3 origin」「Restrict access with VPC origins」「Decide to use signed URLs or signed cookies」「Specify signers that can create signed URLs and signed cookies」「Optimize high availability with CloudFront origin failover」「Differences between CloudFront Functions and Lambda@Edge」「Use field-level encryption」「Restrict the geographic distribution of your content」、Global Accelerator Developer Guide「What is AWS Global Accelerator?」「How AWS Global Accelerator works」「Endpoints for standard accelerators」「How endpoint weights work」「Custom routing accelerators」「Preserve client IP addresses」、Global Accelerator FAQs、re:Post「CloudFront に ACM 証明書を関連付ける」、ACM FAQs</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>静的コンテンツ（画像・動画）のキャッシュ、動的コンテンツ / API の高速化（HTTP/HTTPS）</td>
+<td><strong>CloudFront</strong></td>
+</tr>
+<tr>
+<td>TCP / UDP（ゲーム、IoT の MQTT、VoIP など）の高速化</td>
+<td><strong>Global Accelerator</strong></td>
+</tr>
+<tr>
+<td>HTTP だが<strong>静的 IP が必須</strong>（FW のホワイトリスト）、または<strong>決定的で高速なリージョンフェイルオーバー</strong></td>
+<td><strong>Global Accelerator</strong></td>
+</tr>
+<tr>
+<td>S3 を CloudFront 経由でのみ公開</td>
+<td><strong>OAC</strong>（OAI は非推奨）</td>
+</tr>
+<tr>
+<td>プライベートサブネットの ALB / NLB / EC2 を CloudFront 経由でのみ公開</td>
+<td><strong>VPC オリジン</strong></td>
+</tr>
+<tr>
+<td>有料会員だけが 1 ファイル / 複数ファイルにアクセス</td>
+<td><strong>署名付き URL / 署名付き Cookie</strong></td>
+</tr>
+<tr>
+<td>エッジで軽量な書き換え（リダイレクト、ヘッダー、JWT 検証）</td>
+<td><strong>CloudFront Functions</strong></td>
+</tr>
+<tr>
+<td>エッジでボディ参照・外部呼び出し・数ミリ秒以上の処理</td>
+<td><strong>Lambda@Edge</strong></td>
+</tr>
+<tr>
+<td>特定フィールド（クレジットカード番号など）をエッジで暗号化してアプリ全体で保護</td>
+<td><strong>フィールドレベル暗号化</strong></td>
+</tr>
+<tr>
+<td>国単位でアクセスを遮断</td>
+<td><strong>CloudFront の地理的制限</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">CloudFront と Global Accelerator の違い</h2>
+<ul>
+<li><strong>CloudFront</strong>: キャッシュ可能なコンテンツと動的コンテンツ（API 高速化、動的サイト配信）の両方の性能を改善する</li>
+<li><strong>Global Accelerator</strong>: <strong>TCP / UDP</strong> のアプリを、<strong>エッジでパケットをプロキシ</strong>して 1 つ以上のリージョンのアプリに届ける。非 HTTP のユースケースに向く。HTTP でも、<strong>静的 IP</strong> や<strong>決定的で高速なリージョンフェイルオーバー</strong>が必要なら向く（FAQ の記述）</li>
+<li>両方とも <strong>AWS Shield</strong> による DDoS 保護と統合されている</li>
+<li>原文でキャッシュに触れているのは CloudFront 側のみ（Global Accelerator の説明はパケットのプロキシ）</li>
+</ul>
+<h2 id="s2">CloudFront: S3 オリジンの保護（OAC）</h2>
+<ul>
+<li>S3 への認証付きリクエストの方式は <strong>OAC（origin access control）と OAI（origin access identity）</strong>。<strong>OAC を推奨</strong></li>
+<li>OAC が対応し、OAI が非対応（または回避策が必要）なもの: <strong>2022 年 12 月以降に開始したオプトインリージョンを含むすべてのリージョンの S3</strong>、<strong>SSE-KMS</strong>、<strong>S3 への動的リクエスト（PUT / DELETE）</strong></li>
+<li>OAC の注意点:<ul>
+<li><strong>S3 Object Ownership は「Bucket owner enforced」</strong>（新規バケットのデフォルト）が必要。ACL が必要なら「Bucket owner preferred」</li>
+<li><strong>S3 を静的ウェブサイトエンドポイントとして設定している場合は、CloudFront のカスタムオリジン扱いになり、OAC（OAI も）は使えない</strong></li>
+<li>OAC は <strong>Lambda@Edge によるオリジンのリダイレクトに非対応</strong></li>
+<li>S3 Multi-Region Access Point をオリジンにする場合は別の OAC 設定が必要</li>
+</ul>
+</li>
+<li>OAC の署名は SigV4。設定で「署名しない」「署名する」「Authorization ヘッダーを上書きしない」を選べる（AWS ブログ）</li>
+</ul>
+<h2 id="s3">CloudFront: ALB / EC2 オリジンの保護</h2>
+<ul>
+<li><strong>VPC オリジン</strong>: <strong>プライベートサブネット内の ALB、NLB、EC2 インスタンス</strong>を CloudFront のオリジンにできる。CloudFront が<strong>唯一の入口</strong>になり、CloudFront から VPC オリジンへは<strong>プライベートで安全な接続</strong>。オリジンをパブリックにして ACL などで制限する手間が要らない。<strong>AWS アカウント間の共有</strong>（組織内外を問わず、RAM 経由も可）に対応</li>
+<li>パブリックなオリジンを使う場合: <strong>AWS マネージドのプレフィックスリスト <code>com.amazonaws.global.cloudfront.origin-facing</code></strong> をセキュリティグループのインバウンドルールで参照して、CloudFront のオリジン向け IP からの HTTP/HTTPS だけに絞る（追加費用なし）。全 IP に開放するとオリジンへの直接攻撃で CloudFront の保護を迂回される（AWS ブログ）</li>
+</ul>
+<h2 id="s4">CloudFront: 署名付き URL と署名付き Cookie</h2>
+<ul>
+<li>基本機能は同じ（誰がコンテンツにアクセスできるかを制御）</li>
+<li><strong>署名付き URL</strong>: <strong>個別のファイル</strong>を制限したいとき（例: インストーラーのダウンロード）。<strong>Cookie に対応しないクライアント</strong>（カスタム HTTP クライアント）</li>
+<li><strong>署名付き Cookie</strong>: <strong>複数の制限ファイル</strong>へのアクセスを許可したいとき（例: HLS 動画の全ファイル、会員エリア全体）。<strong>現在の URL を変えたくない</strong>とき</li>
+<li>署名なしの URL に <code>Expires</code> / <code>Policy</code> / <code>Signature</code> / <code>Key-Pair-Id</code> / <code>Hash-Algorithm</code> のクエリ文字列が含まれていると、署名付き URL と見なされて署名付き Cookie は使えない</li>
+<li><strong>署名者（signer）は、信頼されたキーグループ（推奨）か、CloudFront キーペアを持つ AWS アカウント</strong>。署名者をキャッシュビヘイビアに追加すると、そのビヘイビアが署名を必須にする。<strong>ビヘイビアごとに署名の要否を変えられる</strong>（パスごとに一部だけ保護）</li>
+</ul>
+<h2 id="s5">CloudFront: オリジンフェイルオーバー（詳細）</h2>
+<ul>
+<li><strong>オリジングループ</strong>（プライマリとセカンダリの 2 オリジン）を作り、キャッシュビヘイビアに割り当てる</li>
+<li>フェイルオーバー条件の<strong>ステータスコードは 400 / 403 / 404 / 416 / 429 / 500 / 502 / 503 / 504 から任意の組み合わせ</strong>で選ぶ。プライマリに接続できないときは <strong>503 を条件にしていた場合</strong>、応答が時間切れのときは <strong>504 を条件にしていた場合</strong>にフェイルオーバーする</li>
+<li><strong>ビューワーのリクエストが GET / HEAD / OPTIONS のときだけ</strong>フェイルオーバーする。<strong>POST / PUT などはしない</strong>。OPTIONS はキャッシュビヘイビアの「Cached HTTP methods」に含める必要がある</li>
+<li><strong>常にまずプライマリに送る</strong>。以前のリクエストがセカンダリに切り替わっていても、次のリクエストはプライマリから試す（ステートレス。オリジンの健全性を追跡しない）。そのため即座だが、タイムアウトやエラーを待つ分の遅延が出る</li>
+<li><strong>デフォルトでプライマリへの接続を最大 30 秒（10 秒 × 3 回）試してから</strong>セカンダリへ切り替える。<strong>接続タイムアウトは 1〜10 秒、接続試行回数は 1〜3 回</strong>に変更できる。ストリーミングなどで速く切り替えたいときに短縮する</li>
+<li><strong>Lambda@Edge と併用できる</strong>（詳細は原文の該当節。ここでは未確認）</li>
+<li>Route 53 のフェイルオーバー（ヘルスチェックに基づく DNS 切り替え）とは仕組みが違う。組み合わせた構成は AWS ブログにある</li>
+</ul>
+<h2 id="s6">CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>CloudFront Functions</th>
+<th>Lambda@Edge</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>言語</td>
+<td>JavaScript（ECMAScript 5.1 準拠）</td>
+<td>Node.js、Python</td>
+</tr>
+<tr>
+<td>イベント</td>
+<td><strong>ビューワーリクエスト / ビューワーレスポンスのみ</strong></td>
+<td>ビューワー 2 種 + <strong>オリジンリクエスト / オリジンレスポンス</strong></td>
+</tr>
+<tr>
+<td>実行時間</td>
+<td>サブミリ秒</td>
+<td>最大 30 秒</td>
+</tr>
+<tr>
+<td>規模</td>
+<td>毎秒数百万リクエスト</td>
+<td>リージョンあたり最大毎秒 10,000</td>
+</tr>
+<tr>
+<td>メモリ</td>
+<td>2 MB</td>
+<td>128 MB（ビューワー）/ 最大 10,240 MB（オリジン）</td>
+</tr>
+<tr>
+<td>コードサイズ</td>
+<td>10 KB</td>
+<td>50 MB</td>
+</tr>
+<tr>
+<td>ネットワーク / ファイルシステム / リクエストボディ</td>
+<td><strong>不可</strong></td>
+<td><strong>可</strong></td>
+</tr>
+<tr>
+<td>位置情報・デバイスデータ</td>
+<td>可</td>
+<td>ビューワー側は不可、オリジン側は可</td>
+</tr>
+<tr>
+<td>CloudFront KeyValueStore</td>
+<td>可（JavaScript ランタイム 2.0 のみ）</td>
+<td>不可</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>CloudFront Functions の用途: <strong>キャッシュキーの正規化、ヘッダー操作、URL のリダイレクト / 書き換え、JWT などのトークン検証</strong></li>
+<li>Lambda@Edge の用途: 数ミリ秒以上かかる処理、CPU / メモリの調整、サードパーティライブラリ（AWS SDK を含む）、外部サービスへのネットワークアクセス、ファイルシステムやリクエストボディへのアクセス</li>
+<li>Lambda@Edge は<strong>単一のリージョンに発行</strong>し（どのリージョンかは未確認）、ディストリビューションに関連付けると<strong>世界中に自動でレプリケート</strong>される</li>
+</ul>
+<h2 id="s7">CloudFront: その他（HTTPS・暗号化・地理的制限）</h2>
+<ul>
+<li><strong>ACM 証明書を CloudFront で使うには、us-east-1（バージニア北部）で作成またはインポートする</strong>。ACM の証明書を別リージョンから関連付けることはできない（リージョン間コピーもできない）</li>
+<li><strong>フィールドレベル暗号化</strong>: POST リクエストの<strong>特定フィールド（最大 10 個）<strong>を、エッジで</strong>公開鍵（RSA）<strong>により暗号化。<strong>リクエスト全体は暗号化できない</strong>（フィールド単位）。オリジンから先のアプリ全体で暗号化されたままで、<strong>秘密鍵を持つコンポーネントだけが復号</strong>できる（例: 決済処理）。<strong>オリジンはチャンクエンコーディングに対応が必要</strong>。HTTPS によるビューワー〜オリジン間の暗号化に</strong>追加</strong>する層</li>
+<li><strong>地理的制限</strong>: CloudFront の機能は<strong>国単位で、ディストリビューション全体のファイルに適用</strong>（ビヘイビアやパスごとには設定できない）。<strong>許可リストは指定外の国をすべてブロック、拒否リストは指定外の国をすべて許可</strong>。CloudFront の地理的制限は <strong>AWS WAF や エッジ関数より先に評価される</strong>（AWS ブログ）。<strong>一部のファイルだけ、または国より細かい粒度で制限したい場合はサードパーティの位置情報サービス</strong>を使う</li>
+</ul>
+<h2 id="s8">Global Accelerator</h2>
+<ul>
+<li>標準アクセラレーターは、AWS グローバルネットワーク経由で、<strong>クライアントに最も近いリージョンのエンドポイント</strong>に流す。<strong>カスタムルーティングアクセラレーター</strong>は、1 人以上のユーザーを<strong>多数の宛先のうち特定のもの</strong>に割り当てる</li>
+<li><strong>静的 IP</strong>: <strong>IPv4 で 2 つ</strong>、デュアルスタックでは <strong>IPv4 2 + IPv6 2 の計 4 つ</strong>。<strong>エッジネットワークからの anycast</strong>。<strong>自分の IP 範囲を持ち込む（BYOIP）</strong> こともできる。アクセラレーターが存在する限り IP は変わらない（無効にしても保持される。<strong>削除すると失う</strong>）</li>
+<li><strong>エンドポイント</strong>（標準）: <strong>NLB、ALB、EC2 インスタンス、Elastic IP</strong></li>
+<li><strong>TCP 接続をエッジで終端し、ほぼ同時にエンドポイントへ新しい TCP 接続を確立</strong>する。これにより応答時間の短縮とスループットの向上を実現する</li>
+<li><strong>ヘルスチェックとフェイルオーバー</strong>: 標準アクセラレーターは全エンドポイントを継続的に監視し、<strong>異常なエンドポイントから、新規接続を即座に別の正常なエンドポイントへ</strong>向ける。<strong>ヘルスチェックの設定を使うのは EC2 と Elastic IP のみ</strong>。<strong>ALB / NLB は、そのロードバランサー自体に設定済みのヘルスチェックを再利用</strong>する（re:Post）。<strong>正常なエンドポイントがないときは、リージョン内のすべてのエンドポイントに流す</strong></li>
+<li><strong>重みとトラフィックダイヤル</strong>: エンドポイントの重みは <strong>0〜255（既定 128）</strong>。重みの比率で配分し、<strong>0 にすると流さない</strong>。<strong>トラフィックダイヤル</strong>は<strong>エンドポイントグループ（リージョン）単位</strong>で流量の割合を上げ下げ（性能テスト、スタックの更新など）。クライアント IP 保存時など、可用性のために<strong>重みが上書きされる場合がある</strong></li>
+<li><strong>クライアント IP の保存</strong>: 標準アクセラレーターで保存できるのは <strong>ALB、EC2 インスタンス、セキュリティグループ付きの NLB</strong>。<strong>セキュリティグループなしの NLB と Elastic IP は保存不可</strong>。カスタムルーティングでは<strong>常に保存</strong>される</li>
+<li><strong>カスタムルーティングアクセラレーター</strong>: <strong>VPC サブネット内の EC2 インスタンスのポート</strong>にのみ流す。<strong>地理的近接性やエンドポイントの健全性でルーティングせず、ヘルスチェックもフェイルオーバーもない</strong>（宛先は自分が指定）。IPv4 のみ。用途: <strong>ゲームのセッションなど、特定のユーザーを特定のサーバーに固定して割り当てる</strong></li>
+</ul>
+<h2 id="s9">判断ポイント</h2>
+<ul>
+<li>「ALB の前段で、静的 IP を顧客のファイアウォールに許可してもらう」→ <strong>Global Accelerator</strong>（FAQ が静的 IP の要件を Global Accelerator の適した用途に挙げている。CloudFront に静的 IP がないことの原文確認は未確認）</li>
+<li>「DNS キャッシュに影響されず、リージョン障害時にすばやく切り替え」→ <strong>Global Accelerator</strong>（DNS キャッシュの影響を避けられる点は Week2 ノート 08 を参照）</li>
+<li>「グローバルなゲームの UDP トラフィック」→ <strong>Global Accelerator</strong></li>
+<li>「特定のプレイヤーを特定のゲームサーバー（EC2）に割り当てる」→ <strong>カスタムルーティングアクセラレーター</strong></li>
+<li>「S3 バケットを直接アクセス不可にして CloudFront 経由のみ、SSE-KMS も使う」→ <strong>OAC</strong></li>
+<li>「S3 が静的ウェブサイトエンドポイント」→ <strong>OAC は使えない</strong>（カスタムオリジン扱い。代替手段は未確認）</li>
+<li>「プライベートサブネットの ALB を CloudFront 経由のみで公開」→ <strong>VPC オリジン</strong>（またはマネージドプレフィックスリスト）</li>
+<li>「会員が有料動画の HLS（多数のファイル）を見る。URL は変えたくない」→ <strong>署名付き Cookie</strong></li>
+<li>「単一のファイルダウンロードを期限付きで共有」→ <strong>署名付き URL</strong></li>
+<li>「署名者は何にする」→ <strong>信頼されたキーグループ</strong>（推奨）</li>
+<li>「エッジで URL 書き換えや JWT 検証を大規模・低遅延で」→ <strong>CloudFront Functions</strong></li>
+<li>「エッジで外部 API / DB を呼ぶ、リクエストボディを読む」→ <strong>Lambda@Edge</strong></li>
+<li>「カード番号だけをエッジで暗号化して、バックエンドの途中で見えないように」→ <strong>フィールドレベル暗号化</strong></li>
+<li>「特定の国からのアクセスを遮断」→ <strong>CloudFront の地理的制限</strong>（ファイル単位・都市単位ならサードパーティ）（AWS WAF での地理的な制御は未確認）</li>
+<li>「CloudFront で独自ドメインの HTTPS。証明書は ACM」→ <strong>us-east-1 で発行</strong></li>
+<li>「CloudFront のオリジンフェイルオーバーで POST は？」→ <strong>フェイルオーバーしない</strong>（GET / HEAD / OPTIONS のみ）</li>
+</ul>
+<h2 id="s10">未確認</h2>
+<ul>
+<li><strong>CloudFront</strong>: キャッシュポリシー / オリジンリクエストポリシー / レスポンスヘッダーポリシー、TTL とキャッシュ無効化（Invalidation）の課金、料金クラス（Price Class）、<strong>Origin Shield</strong>、<strong>オリジンへの HTTPS 要件とカスタムヘッダー（ALB のシークレットヘッダー方式）</strong>、<strong>AWS WAF との統合</strong>（WAF 自体を Week4 で別ノートにする予定）、<strong>Lambda@Edge のレプリケーション元リージョン（us-east-1）と併用時の制約</strong>、オリジンフェイルオーバーと Lambda@Edge の併用の詳細、<strong>リアルタイムログ / 標準ログ</strong>、<strong>mTLS / Connection Functions</strong>、<strong>SNI と専用 IP 独自 SSL</strong>、<strong>Continuous deployment（ステージングディストリビューション）</strong>、<strong>S3 のバケットポリシー（OAC 用）の書き方</strong></li>
+<li><strong>Global Accelerator</strong>: <strong>料金（固定 + データ転送プレミアム）</strong>、<strong>ヘルスチェックの間隔・しきい値・フェイルオーバー時間の数値</strong>、<strong>接続の衝突（connection collisions）の詳細</strong>、<strong>BYOIP の要件</strong>、<strong>Global Accelerator と CloudFront の併用</strong>、<strong>フローログ</strong>、<strong>IPv6 の対応範囲</strong></li>
+<li><strong>Route 53 との使い分け</strong>: レイテンシールーティング + ヘルスチェックによる構成との比較（Week1 / Week2 のノートに一部あり）</li>
+</ul>
+<h2 id="s11">疑問・確認したい点</h2>
+</main></body></html>

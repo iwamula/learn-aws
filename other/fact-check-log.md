@@ -160,3 +160,27 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 14: Compute Optimizer（対象リソース、14 日 / 93 日、外部メトリクス）、S3 Intelligent-Tiering（30/90/90/180 日、128 KB 未満）、ライフサイクル（ウォーターフォール、128 KB 既定、最小期間課金）、Spot（2 分前通知、hibernate は警告なし、最大価格で中断増） | ✅ 原文どおり |
 | 14: 「EC2 メモリは CloudWatch 標準では出ないため CloudWatch エージェントも一般的」 | ➕ 原文は外部メトリクス取り込みの記述のみ。ノート内で推論と明記 |
 | 14: Intelligent-Tiering の取り出し料金、Glacier Flexible / Deep Archive の最小期間、データ転送料金、Trusted Advisor、Spot Fleet 戦略、リバランス推奨、Savings Plans の返品ポリシー、ODCR | 未確認 |
+
+## 2026-09-26（Week4 ノート 16）
+根拠: aws-mcp の search_documentation / read_documentation で取得した公式ドキュメント原文（CloudFront Developer Guide、Global Accelerator Developer Guide・FAQ、re:Post、ACM FAQ）。一部は AWS ブログ（ノート内に明記）
+
+| 対象 | 結果 |
+|---|---|
+| 16: OAC（SSE-KMS、全リージョン、PUT/DELETE、Object Ownership、静的ウェブサイトエンドポイント不可）、VPC オリジン、マネージドプレフィックスリスト | ✅ 原文どおり |
+| 16: 署名付き URL / Cookie の使い分け、署名者（キーグループ推奨）、オリジンフェイルオーバー（ステータスコード 9 種、GET/HEAD/OPTIONS のみ、30 秒 = 10 秒 × 3 回、1〜10 秒 / 1〜3 回） | ✅ 原文どおり |
+| 16: CloudFront Functions と Lambda@Edge の比較表、フィールドレベル暗号化（最大 10 フィールド）、地理的制限、ACM は us-east-1 | ✅ 原文どおり |
+| 16: Global Accelerator（静的 IP、エンドポイント種別、ヘルスチェック、重み 0〜255、トラフィックダイヤル、クライアント IP 保存、カスタムルーティング） | ✅ 原文どおり |
+| 16: 地理的制限が WAF / エッジ関数より先に評価される、OAC の署名オプション、フェイルオーバーの「ステートレス」 | ➕ AWS ブログの記述（DG 原文では未確認） |
+| 16: CloudFront に静的 IP がないこと、Lambda@Edge の発行リージョン、キャッシュ / Origin Shield / 料金クラス、GA の料金とヘルスチェック数値、BYOIP、WAF 統合 | 未確認 |
+
+## 2026-09-26（Week4 ノート 17）
+根拠: aws-mcp の search_documentation と curl で取得した公式ドキュメント原文（SQS / SNS / Step Functions / API Gateway / EventBridge / Scheduler の各 Developer Guide、re:Post）。一部は AWS ブログ・Well-Architected（ノート内に明記）
+
+| 対象 | 結果 |
+|---|---|
+| 17: SQS（標準 / FIFO の保証、FIFO 300 TPS・バッチ 3,000、可視性タイムアウト 30 秒〜12 時間、ロングポーリング最大 20 秒、保持 4 日（60 秒〜14 日）、1 MiB、遅延最大 15 分、DLQ は同種別、FIFO 変換不可・メッセージ単位遅延不可、重複排除 5 分） | ✅ 原文どおり |
+| 17: SNS（FIFO トピックの配信先制限、フィルターポリシー、変更反映最大 15 分、DLQ） | ✅ 原文どおり |
+| 17: Step Functions（Standard / Express の比較、型は変更不可、統合パターン、分散マップ） | ✅ 原文どおり（開始レートはブログ、Express 同期の at-most-once は Well-Architected の記述） |
+| 17: API Gateway（API 種別、REST / HTTP 選択基準、エンドポイント 3 種、キャッシュ TTL 300〜3,600 秒、スロットリング、アカウント 10,000 RPS・バースト 5,000） | ✅ 原文どおり |
+| 17: EventBridge（アーカイブ / リプレイ、クロスアカウント・クロスリージョン、別アカウントの直接ターゲット 5 種、Pipes、Scheduler） | ✅ 原文どおり（クロスリージョンの詳細はブログ） |
+| 17: SQS の Lambda 連携・DLQ リドライブ・暗号化、SNS のリトライ、EventBridge のスキーマ / API Destinations / グローバルエンドポイント、Step Functions の Retry/Catch・上限値、API Gateway の統合タイムアウト・オーソライザー・リソースポリシー | 未確認 |

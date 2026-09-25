@@ -1,4 +1,4 @@
-# 進捗と次のタスク（最終更新: 2026-09-26（Week3 ノート 15 完了））
+# 進捗と次のタスク（最終更新: 2026-09-26（Week4 ノート 17 完了））
 
 ## 完了
 - [x] README にロードマップ作成（試験日 2026-10-24）
@@ -25,6 +25,14 @@
   - [x] 14 コスト最適化（Savings Plans 4種と適用順、RI のクラス・スコープ・交換・Marketplace、組織内共有、Budgets/Anomaly Detection/Data Exports、Compute Optimizer、S3 Intelligent-Tiering/ライフサイクル、Spot）— 2026-09-26 作成、公式ドキュメント原文で裏取り済み（データ転送料金、Trusted Advisor、Spot Fleet 戦略、S3 Glacier の最小期間などは未確認）
   - [x] 15 移行（7R、DMS の同種/異種・CDC、SCT、DataSync、Snowball Edge、MGN）— 2026-09-26 作成、公式ドキュメント原文で裏取り済み（Snowball Edge は新規顧客受付終了、MGN は原文で「AWS Transform MGN」表記。DMS Serverless、DataSync Enhanced モード、Transfer Family などは未確認）
   - [ ] 各ノート完成後、README の Week3 ノート一覧にリンクを追加する（12〜15 は追加済み）
+
+- [ ] Week4 前の補強ノート（Week3 までで未カバーの頻出分野。書式は notes/week3 に合わせる。`notes/week4/` に置く。1本ずつ原文で裏取り）
+  - [x] 16 CloudFront / Global Accelerator — 2026-09-26 作成（aws-mcp で原文確認。Origin Shield、キャッシュポリシー、料金などは未確認）
+  - [x] 17 SQS / SNS / EventBridge / Step Functions / API Gateway — 2026-09-26 作成（aws-mcp と curl で原文確認。SQS の Lambda 連携・DLQ リドライブ、API Gateway の統合タイムアウト、EventBridge のスキーマ / API Destinations などは未確認）
+  - [ ] 18 S3 詳細 / Storage Gateway / FSx / EFS（ストレージ）
+  - [ ] 19 セキュリティ（WAF / Shield / Secrets Manager / ACM / GuardDuty 補足）
+  - [ ] 20 分析（Athena / Glue / Lake Formation / Redshift / Kinesis）
+  - [ ] 各ノート完成後、README の Week4 ノート一覧にリンクを追加する（16、17 は追加済み）
 
 - [x] notes/ の md を HTML に変換するスクリプト（2026-09-26）— `npm run build:html`（`scripts/build-html.mjs`、marked、出力は gitignore 済みの `docs/`）。md が正本で、変換に AI トークンは不要。`--watch` 対応。新規ノートを追加したら再実行するだけ
 

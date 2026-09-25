@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week4-17: SQS / SNS / EventBridge / Step Functions / API Gateway（メッセージングと疎結合）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">SQS</a><a class="h2" href="#s2">SNS</a><a class="h2" href="#s3">EventBridge</a><a class="h2" href="#s4">Step Functions</a><a class="h2" href="#s5">API Gateway</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">未確認</a><a class="h2" href="#s8">疑問・確認したい点</a></nav><main><h1>Week4-17: SQS / SNS / EventBridge / Step Functions / API Gateway（メッセージングと疎結合）</h1>
+<p>出典（2026-09-26 に aws-mcp の search_documentation と curl で原文を確認）: SQS Developer Guide「Create queue」「Amazon SQS message quotas」「Visibility timeout」「Short and long polling」「Configure a dead-letter queue」「FIFO 排他的処理」「Moving from a standard queue to a FIFO queue」「Message retention period」、SNS Developer Guide「FIFO topics のメッセージ配信 / フィルタリング」「Message filtering」「Dead-letter queues」、Step Functions Developer Guide「Choosing workflow type」「Service integration patterns」「Distributed Map」、API Gateway Developer Guide「Choose between REST APIs and HTTP APIs」「Caching」「Throttling」「Quotas」、API Gateway FAQ、EventBridge User Guide「What is EventBridge」「Archive and replay」「Pipes」、EventBridge Scheduler「What is」、re:Post「クロスアカウントターゲット」、AWS Compute Blog（EventBridge クロスリージョン、SQS Well-Architected）</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>非同期のバッファ、ワーカーの負荷平準化、疎結合</td>
+<td><strong>SQS</strong></td>
+</tr>
+<tr>
+<td>順序保証 + 重複排除が必要なキュー</td>
+<td><strong>SQS FIFO</strong></td>
+</tr>
+<tr>
+<td>1 つのメッセージを複数の購読者へ配信（ファンアウト）</td>
+<td><strong>SNS</strong>（+ SQS 購読）</td>
+</tr>
+<tr>
+<td>ルールでイベントを振り分け、AWS サービス / SaaS / 別アカウントへ連携</td>
+<td><strong>EventBridge</strong></td>
+</tr>
+<tr>
+<td>送信元と送信先を 1 対 1 で結び、フィルタ・加工したい</td>
+<td><strong>EventBridge Pipes</strong></td>
+</tr>
+<tr>
+<td>cron / 1 回限りのスケジュール実行</td>
+<td><strong>EventBridge Scheduler</strong></td>
+</tr>
+<tr>
+<td>複数ステップの処理を順序・分岐・リトライ付きで制御</td>
+<td><strong>Step Functions</strong></td>
+</tr>
+<tr>
+<td>長時間（最大 1 年）、非冪等な処理（決済など）</td>
+<td><strong>Step Functions Standard</strong></td>
+</tr>
+<tr>
+<td>大量・短時間（5 分以内）、冪等な処理</td>
+<td><strong>Step Functions Express</strong></td>
+</tr>
+<tr>
+<td>HTTP API を公開（API キー、使用量プラン、WAF、プライベート API が必要）</td>
+<td><strong>API Gateway REST API</strong></td>
+</tr>
+<tr>
+<td>低料金・低遅延の Lambda / HTTP プロキシ（JWT 認証で足りる）</td>
+<td><strong>API Gateway HTTP API</strong></td>
+</tr>
+<tr>
+<td>双方向のリアルタイム通信</td>
+<td><strong>API Gateway WebSocket API</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">SQS</h2>
+<ul>
+<li><strong>標準キュー</strong>: ほぼ無制限のスループット。<strong>少なくとも 1 回</strong>配信（重複あり）、<strong>順序は保証しない</strong></li>
+<li><strong>FIFO キュー</strong>: 順序保持、<strong>重複なし</strong>（5 分の重複排除間隔内）。スループットは標準より低い。<strong>バッチなしで 300 TPS / API メソッド、バッチ（10 件）ありで 3,000 メッセージ/秒</strong>（ハイスループットモードで引き上げ可）<ul>
+<li><strong>メッセージグループ ID</strong>（グループ内で順序保持、グループ間は並列処理）は必須。<strong>細かい粒度のビジネス単位</strong>にするほどスケールする</li>
+<li><strong>重複排除 ID</strong>、またはコンテンツベースの重複排除を使う</li>
+<li><strong>既存の標準キューを FIFO に変換することはできない</strong>（作り直す）。FIFO は<strong>メッセージ単位の遅延不可、キュー単位の遅延のみ</strong></li>
+</ul>
+</li>
+<li><strong>可視性タイムアウト</strong>: <strong>既定 30 秒、最大 12 時間</strong>。処理中のメッセージを他のコンシューマーから隠す。処理が長い場合は延長（ChangeMessageVisibility）</li>
+<li><strong>ロングポーリング</strong>: 最大待機 <strong>20 秒</strong>。空レスポンスを減らしコスト削減。<strong>ショートポーリングが既定</strong>（ReceiveMessageWaitTimeSeconds か WaitTimeSeconds で有効化）</li>
+<li><strong>保持期間</strong>: <strong>既定 4 日、60 秒〜14 日</strong></li>
+<li><strong>メッセージサイズ</strong>: 最大 <strong>1,048,576 バイト（1 MiB）</strong>（大きいデータは S3 に置いて参照する拡張クライアントの考え方）。<strong>配信遅延: 既定 0 秒、最大 15 分</strong></li>
+<li><strong>デッドレターキュー（DLQ）</strong>: <strong>キュー種別が同じ</strong>（FIFO は FIFO の DLQ、標準は標準の DLQ）。<strong>期限は元のエンキュー時刻基準</strong>なので、DLQ の保持期間は元のキューより長くする</li>
+<li>判断: 「順序が重要、重複不可」→ FIFO、「スループット最優先で重複は許容」→ 標準</li>
+</ul>
+<h2 id="s2">SNS</h2>
+<ul>
+<li><strong>標準トピック</strong>: 高スループットのパブリッシュ / サブスクライブ。<strong>メッセージフィルタリング</strong>は購読ごとの<strong>フィルターポリシー</strong>（<strong>メッセージ属性</strong>または<strong>メッセージ本文</strong>のスコープ）。ポリシーがない購読は<strong>全メッセージを受信</strong>。ポリシーの追加・変更は反映まで<strong>最大 15 分</strong>（re:Post）</li>
+<li><strong>FIFO トピック</strong>: <strong>SQS の標準キュー / FIFO キュー</strong>へ配信できる。<strong>メール・SMS・モバイルプッシュ・HTTP(S) など顧客管理のエンドポイントへは配信できず、購読するとエラー</strong>。FIFO トピックから Lambda へは、<strong>SQS を挟んで</strong>トリガーする。FIFO でも<strong>フィルタリングは標準トピックと同等</strong></li>
+<li><strong>SNS + SQS ファンアウト</strong>: 1 メッセージを複数の SQS キューに配信し、それぞれ独立して処理（各購読者が自分のペースで消費、フィルターで振り分け）。<strong>順序 + 重複排除 + ファンアウト</strong>なら「SNS FIFO + SQS FIFO」、コスト重視でベストエフォートの順序なら SQS 標準</li>
+<li><strong>DLQ</strong>: SNS の購読に SQS の DLQ を設定でき、配信失敗（クライアント / サーバーエラー）のメッセージを保持して分析・再処理できる。FIFO トピックには FIFO キューを使う</li>
+</ul>
+<h2 id="s3">EventBridge</h2>
+<ul>
+<li><strong>イベントバス</strong>（ルールでイベントを受け取り、パターンに一致したものをターゲットへ）は<strong>多対多</strong>のルーティングに向く。新規アプリはカスタムイベントバスを使う（原文: 「Custom Event Bus」と「Custom Event Bus - Classic」の 2 種）</li>
+<li><strong>アーカイブとリプレイ</strong>: イベントをアーカイブし、<strong>元のイベントバスに再送</strong>できる（障害復旧、新機能のテストなど）</li>
+<li><strong>クロスアカウント / クロスリージョン</strong>: ルールのターゲットに<strong>別アカウント / 別リージョンのイベントバス</strong>を指定できる。<strong>配信されるイベントは元のイベントと同一</strong>（追加メタデータなし）。CLI で設定する場合は <strong><code>events:PutEvents</code> を許可する IAM ロールを自分で作る</strong></li>
+<li><strong>別アカウントの直接ターゲット</strong>: <strong>ルールとターゲットは同一リージョン</strong>。<strong>API Gateway、Kinesis Data Streams、Lambda、SNS、SQS</strong> のみ対象（re:Post）</li>
+<li><strong>Pipes</strong>: <strong>ソース → 任意のフィルター → 任意の強化（enrichment）→ ターゲット</strong>の<strong>1 対 1</strong>の連携。イベントバスの多対多とは用途が違う</li>
+<li><strong>Scheduler</strong>: <strong>cron / rate の定期実行</strong>と<strong>1 回限り</strong>の呼び出し。<strong>数百万件</strong>のスケジュール、<strong>270 以上のサービス・6,000 以上の API</strong> を呼び出せる。<strong>フレキシブルタイムウィンドウ</strong>、リトライ上限、失敗時の最大保持時間を設定できる</li>
+<li>SNS との使い分け: SNS は<strong>シンプルなファンアウト</strong>（高スループット）、EventBridge は<strong>内容ベースのルーティング、SaaS / AWS サービスのイベント、スキーマ、アーカイブ</strong>（SNS / EventBridge の細かい上限の比較は未確認）</li>
+</ul>
+<h2 id="s4">Step Functions</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Standard</th>
+<th>Express</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>最大実行時間</td>
+<td><strong>1 年</strong></td>
+<td><strong>5 分</strong></td>
+</tr>
+<tr>
+<td>実行モデル</td>
+<td><strong>exactly-once</strong>（Retry を指定しない限り 1 回だけ）</td>
+<td><strong>at-least-once</strong>（非同期）。原文の Well-Architected では同期は <strong>at-most-once</strong></td>
+</tr>
+<tr>
+<td>向く処理</td>
+<td><strong>非冪等</strong>（EMR 起動、決済）</td>
+<td><strong>冪等</strong>（DynamoDB への PUT など）、IoT 取り込み、ストリーム処理、モバイルバックエンド</td>
+</tr>
+<tr>
+<td>課金</td>
+<td><strong>状態遷移数</strong></td>
+<td><strong>実行数・実行時間・メモリ</strong></td>
+</tr>
+<tr>
+<td>履歴</td>
+<td>サービス内（完了後 <strong>90 日</strong>、API で取得）</td>
+<td>CloudWatch Logs</td>
+</tr>
+<tr>
+<td>統合パターン</td>
+<td>リクエスト/レスポンス、<strong>.sync（ジョブ完了待ち）</strong>、<strong>.waitForTaskToken（コールバック）</strong></td>
+<td><strong>リクエスト/レスポンスのみ</strong></td>
+</tr>
+<tr>
+<td>開始レート（ブログの数値）</td>
+<td>2,000 超/秒</td>
+<td>100,000 超/秒</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>ワークフロータイプは作成後に変更できない</strong></li>
+<li>状態遷移課金なので、<strong>ポーリングのループより .sync やコールバックの方が遷移数を減らしコストが下がる</strong>（Well-Architected）</li>
+<li><strong>分散マップ（Distributed Map）</strong>: S3 の大量データ（JSON / CSV / オブジェクト一覧）を<strong>子ワークフロー実行</strong>で大規模並列処理する。子実行はそれぞれ<strong>独立した実行履歴</strong>を持つ</li>
+<li>起動元: API Gateway、IoT ルール、EventBridge の 140 以上のイベントソースなど</li>
+</ul>
+<h2 id="s5">API Gateway</h2>
+<ul>
+<li><strong>API の種類</strong>: <strong>REST</strong>（エンドポイント 3 種: エッジ最適化 / リージョン / プライベート）、<strong>HTTP</strong>（REST の軽量な機能サブセット。自動デプロイと CORS 対応）、<strong>WebSocket</strong>（双方向。<strong>プライベートエンドポイントなし</strong>、VPC リンクによるプライベート統合は可）</li>
+<li><strong>REST と HTTP の選択</strong>: HTTP API は<strong>低価格</strong>。<strong>API キー、クライアント単位のスロットリング、リクエスト検証、AWS WAF 統合、プライベート API エンドポイントが必要なら REST</strong>。<strong>キャッシュ、カナリアリリース</strong>も REST の機能。認証は HTTP が <strong>JWT オーソライザー</strong>（Cognito 対応）、REST は Lambda オーソライザー等で JWT を検証</li>
+<li><strong>エンドポイント</strong>:<ul>
+<li><strong>エッジ最適化</strong>（REST のデフォルト）: CloudFront 経由で分散クライアント向け。<strong>同一リージョンのサービスがクライアントの場合や、CloudFront のキャッシュを細かく制御したい場合は不向き</strong></li>
+<li><strong>リージョン</strong>（HTTP / WebSocket のデフォルト）: 同一リージョンのクライアント、または<strong>自分で管理する CloudFront のオリジン</strong>にする場合</li>
+<li><strong>プライベート</strong>: <strong>VPC 内から、インターフェイス VPC エンドポイント経由のみ</strong></li>
+</ul>
+</li>
+<li><strong>キャッシュ（REST）</strong>: <strong>TTL 既定 300 秒、最大 3,600 秒、0 で無効</strong>。<strong>ベストエフォート</strong>。キャッシュサイズの例に 0.5 GB</li>
+<li><strong>スロットリング</strong>: <strong>アカウント単位（リージョンごと）</strong>、ステージ / メソッド単位、<strong>使用量プラン</strong>（クライアント単位）。上限を超えると <strong>429 Too Many Requests</strong>。スロットルとクォータは<strong>ベストエフォート</strong>。<strong>アカウント上限は 10,000 RPS、バーストのバケット容量 5,000</strong>（原文の記述。値は変わりうる）</li>
+<li>統合: HTTP API のプライベート統合は <strong>ALB、NLB、AWS Cloud Map</strong></li>
+</ul>
+<h2 id="s6">判断ポイント</h2>
+<ul>
+<li>「リクエストの急増を吸収して、バックエンドの処理は一定ペース」→ <strong>SQS</strong>（前段に API Gateway / SNS）</li>
+<li>「注文処理は順序保持、重複不可」→ <strong>SQS FIFO</strong>（メッセージグループ ID に注文 ID など）</li>
+<li>「1 つのイベントを在庫・配送・分析の 3 システムへ、それぞれ独立に処理」→ <strong>SNS + SQS ファンアウト</strong></li>
+<li>「SNS FIFO からメールや HTTP エンドポイントへ」→ <strong>不可</strong>（SQS を経由）</li>
+<li>「処理に失敗し続けるメッセージを隔離して調査」→ <strong>DLQ</strong>（種別を合わせる。保持期間は元より長く）</li>
+<li>「処理に時間がかかり、途中で別のコンシューマーに重複処理されてしまう」→ <strong>可視性タイムアウトを延長</strong></li>
+<li>「SQS を空ポーリングするコストを削減」→ <strong>ロングポーリング（最大 20 秒）</strong></li>
+<li>「SaaS / AWS サービスのイベントを内容で振り分けて別アカウントへ」→ <strong>EventBridge（クロスアカウントのイベントバス）</strong></li>
+<li>「過去のイベントを再送して不具合を再現」→ <strong>EventBridge アーカイブ + リプレイ</strong></li>
+<li>「決済や EMR 起動を含む、最大数日〜数か月の承認フロー」→ <strong>Step Functions Standard</strong>（.waitForTaskToken）</li>
+<li>「IoT からの大量イベントを 5 分以内に変換して DynamoDB へ」→ <strong>Step Functions Express</strong>（冪等にする）</li>
+<li>「API キーとクライアントごとのレート制限で API を外部提供」→ <strong>REST API + 使用量プラン</strong></li>
+<li>「Lambda を低コストで公開、JWT 認証」→ <strong>HTTP API</strong></li>
+<li>「VPC 内のクライアントだけが呼べる API」→ <strong>REST API のプライベートエンドポイント</strong></li>
+<li>「同一リージョンの内部サービスからの呼び出し」→ <strong>リージョンエンドポイント</strong>（エッジ最適化は不向き）</li>
+</ul>
+<h2 id="s7">未確認</h2>
+<ul>
+<li><strong>SQS</strong>: Lambda イベントソースマッピングとの連携（バッチ、部分バッチ失敗、最大同時実行、可視性タイムアウトとの関係）、<strong>DLQ リドライブ</strong>、FIFO の<strong>ハイスループットモードの上限数値</strong>、暗号化（SSE-SQS / SSE-KMS）、キューポリシーによるクロスアカウント、<strong>In-flight 上限</strong>、拡張クライアント</li>
+<li><strong>SNS</strong>: 配信リトライポリシー、メッセージ配信の暗号化、<strong>メッセージ保持・アーカイブ（FIFO）</strong>、SNS と EventBridge の詳細な比較、料金</li>
+<li><strong>EventBridge</strong>: イベントパターンの記法、<strong>スキーマレジストリ</strong>、<strong>API Destinations</strong>、ターゲットの DLQ とリトライ、<strong>グローバルエンドポイント（イベントバスのリージョンフェイルオーバー）</strong>、バスのリソースポリシーの書き方</li>
+<li><strong>Step Functions</strong>: <strong>Retry / Catch の記法</strong>、Map の同時実行数、Express の同期実行（API Gateway 経由）、<strong>Distributed Map の上限</strong>、Standard の開始レートやクォータの公式値（ブログの数値を採用）、<strong>Express の履歴が CloudWatch Logs になる詳細</strong></li>
+<li><strong>API Gateway</strong>: <strong>統合タイムアウト（29 秒の既定と引き上げ）</strong>、ペイロード上限、<strong>Lambda オーソライザーのキャッシュ</strong>、Cognito オーソライザー、<strong>リソースポリシーによるクロスアカウント / IP 制限</strong>、<strong>カスタムドメインと ACM（エッジ最適化は us-east-1）</strong>、<strong>ステージ変数、カナリア</strong>、<strong>HTTP API のスロットリング</strong>、CloudFront / WAF との組み合わせ、mTLS</li>
+</ul>
+<h2 id="s8">疑問・確認したい点</h2>
+</main></body></html>
