@@ -1,4 +1,4 @@
-# 進捗と次のタスク（最終更新: 2026-09-26（Week3 ノート 14 完了））
+# 進捗と次のタスク（最終更新: 2026-09-26（Week3 ノート 15 完了））
 
 ## 完了
 - [x] README にロードマップ作成（試験日 2026-10-24）
@@ -19,11 +19,12 @@
   - [x] 11 コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）— 2026-09-26 作成、ECS/EKS/Lambda 公式ドキュメント原文で裏取り済み（Lambda の VPC/AZ、SnapStart 制約は未確認）
   - [ ] 各ノート完成後、README の Week2 ノート一覧にリンクを追加する（08〜11 は追加済み）
 
-- [ ] Week3 ノート作成（README のロードマップ: 10/9-10/15）。12〜14 は完了。次は 15。案: 15 移行（DMS/SCT、DataSync、Snow、MGN、7R）。書式は notes/week2 に合わせる
+- [ ] Week3 ノート作成（README のロードマップ: 10/9-10/15）。12〜15 は完了。Week3 のロードマップ項目は一通り完了。書式は notes/week2 に合わせる
   - [x] 12 CloudFormation/CDK — 2026-09-26 作成、CloudFormation/CDK 公式ドキュメント原文で裏取り済み（drift-aware 変更セット、Concurrency mode、終了保護などは未確認）
   - [x] 13 監視・監査（CloudTrail 組織証跡/Insights/整合性検証、Config アグリゲーター/組織ルール/修復、CloudWatch OAM・Logs 集約・複合アラーム、X-Ray サンプリング）— 2026-09-26 作成、公式ドキュメント原文で裏取り済み（CloudWatch のメトリクス/Logs Insights/異常検知、EventBridge は未確認）
   - [x] 14 コスト最適化（Savings Plans 4種と適用順、RI のクラス・スコープ・交換・Marketplace、組織内共有、Budgets/Anomaly Detection/Data Exports、Compute Optimizer、S3 Intelligent-Tiering/ライフサイクル、Spot）— 2026-09-26 作成、公式ドキュメント原文で裏取り済み（データ転送料金、Trusted Advisor、Spot Fleet 戦略、S3 Glacier の最小期間などは未確認）
-  - [ ] 各ノート完成後、README の Week3 ノート一覧にリンクを追加する（12〜14 は追加済み）
+  - [x] 15 移行（7R、DMS の同種/異種・CDC、SCT、DataSync、Snowball Edge、MGN）— 2026-09-26 作成、公式ドキュメント原文で裏取り済み（Snowball Edge は新規顧客受付終了、MGN は原文で「AWS Transform MGN」表記。DMS Serverless、DataSync Enhanced モード、Transfer Family などは未確認）
+  - [ ] 各ノート完成後、README の Week3 ノート一覧にリンクを追加する（12〜15 は追加済み）
 
 - [x] notes/ の md を HTML に変換するスクリプト（2026-09-26）— `npm run build:html`（`scripts/build-html.mjs`、marked、出力は gitignore 済みの `docs/`）。md が正本で、変換に AI トークンは不要。`--watch` 対応。新規ノートを追加したら再実行するだけ
 
