@@ -1,8 +1,7 @@
 # QA
 
-Q1. AWS Control Towerの概要を教えてください。
+## Q1. AWS Control Towerの概要を教えてください。
 
-A1.
 マルチアカウント環境の土台（ランディングゾーン）を、AWS のベストプラクティスに沿って自動構築し、ガバナンスを継続的に効かせるサービスです。Organizations、CloudFormation StackSets、Config、CloudTrail、IAM Identity Center などを束ねて構築します。
 
 共有アカウントとして、初期構築で Log Archive（全アカウントのログの保管庫）と Audit（セキュリティ/コンプライアンス用の制限付きアカウント）ができます。既存アカウントの流用も可能です。
@@ -15,9 +14,9 @@ Account Factory は標準構成で新規アカウントを払い出す仕組み�
 
 試験での判断: 新規アカウントを標準構成とガードレール付きで素早く量産したいなら Control Tower。細かい権限の上限だけ自前で設計したいなら Organizations + SCP。詳細は notes/week1/05-control-tower-identity-center.md にあります。
 
-Q2. AWS OrganizationのOUって、Active Directoryとかの回想の概念に似てますか？
 
-A2. 
+## Q2. AWS OrganizationのOUって、Active Directoryとかの回想の概念に似てますか？
+
 「入れ物に入れて階層で管理し、上位で決めたルールが下位に流れる」という発想はよく似ています。ただし中身は違います。
 
 似ている点: OU はアカウントをまとめる入れ物で、OU の中に OU を入れて階層（ツリー）を作れます。ルート OU から始まる逆さの木構造です。OU にポリシーをアタッチすると、その OU と配下の子 OU の全アカウントに効きます。AD の GPO が OU から配下へ継承されるのと同じ感覚です。
@@ -28,13 +27,10 @@ A2.
 3つ目は、階層の制限です。1つの組織に最大 1,000 OU、ネストは最大 5 段までです。
 
 試験での判断: OU 設計は「同じガードレールを適用したい単位」で切るのが基本です（例: 本番 OU、開発 OU、セキュリティ OU）。細かい単位で分けすぎるより、SCP を継承させる前提で階層を作ります。
->
 
 
-Q3. CloudFormation フックとはなんですか？任意のCloudFormationテンプレートでスタックを作成するときに自動的に挿入される処理ということですか？
+## Q3. CloudFormation フックとはなんですか？任意のCloudFormationテンプレートでスタックを作成するときに自動的に挿入される処理ということですか？
 
-A3.
-AI回答（2026-09-25）
 惜しいですが、正確には少し違います。CloudFormation フック（Hooks）は、リソースやスタックをプロビジョニングする直前に、その設定を検査して、非準拠なら止める（または警告する）仕組みです。テンプレートに書き込まれる処理ではなく、CloudFormation 側にあらかじめ有効化しておく検査ロジックです。
 
 動きは次のとおりです。CloudFormation がスタックやリソースを作成・更新・削除する直前に、フックのコードが呼び出されます。フックは、これから作られるリソースの設定（またはテンプレート、変更セット）を見て、成功か失敗を返します。失敗の場合、失敗モードが FAIL なら操作を止めてリソースを作らせません。WARN なら警告を出すだけで処理は続きます。公式ドキュメントには、まず WARN で影響範囲を確認してから FAIL に切り替えるのが効果的と書かれています。
@@ -50,6 +46,19 @@ AI回答（2026-09-25）
 注意点として、CloudFormation を経由しない作成（コンソールや CLI で直接リソースを作る場合）は、フックでは止められません。ここが SCP との大きな違いです。SCP は経路を問わず API 呼び出しを拒否しますが、フックは CloudFormation 経由の操作だけを検査します。前の Q1 の回答にある「プロアクティブ（CloudFormation 経由のみ）」はこの意味です。
 
 試験での判断: 「リソースが作成される前に、CloudFormation デプロイ時点で非準拠を検知して止めたい」ならフック（Control Tower のプロアクティブコントロール）です。「経路を問わず操作そのものを禁止したい」なら SCP です。「作成後の設定違反を検知したい」なら Config ルール（発見コントロール）です。
-根拠: CloudFormation Hooks User Guide「What are CloudFormation Hooks?」「Hooks concepts」原文。
+
+## Q4. 「CloudFormation を経由しない作成」ということは、例えば Terraform applyで作成したリソースも対象外ですか？
+
+> AI回答（2026-09-26）
+> 基本的にはそのとおりで、通常の Terraform（AWS プロバイダー）で apply したリソースは、CloudFormation フックの対象外です。
+>
+> 理由です。フックが呼び出されるのは、公式ドキュメント上、CloudFormation がスタックやリソースを作成・更新・削除する直前と、Cloud Control API がリソースを作成・更新・削除する直前です。Terraform の AWS プロバイダーは、S3 や EC2 などの各サービスの API を直接呼び出します。CloudFormation も Cloud Control API も通らないため、フックが呼ばれる場面がありません。Control Tower のプロアクティブコントロールも、CloudFormation フックで実装されていて、CloudFormation でプロビジョニングされるリソースに適用されると原文にあります。したがって、Terraform で作る分には効きません。
+>
+> 例外の可能性です。フックのターゲットには、Cloud Control API 対応リソース（CLOUD_CONTROL）を指定できます。Terraform にも Cloud Control API 経由でリソースを作るプロバイダー（awscc）があるので、こちらを使う場合はフックが効く可能性があります。ただし、この点は原文で確認できていないので、未確認です。
+>
+> 補足です。コンソールや CLI で直接作った場合も、同じ理由でフックの対象外です。
+>
+> 試験での判断: Terraform やコンソール、CLI など経路を問わず禁止したいなら、SCP（または RCP）を使います。SCP は API 呼び出しの認可段階で効くので、経路に関係ありません。フックは CloudFormation デプロイ時の事前検査に向いています。作成後の設定違反の検知なら Config ルールです。Terraform で運用している組織は、フックだけに頼らず、SCP でガードレールを敷くのが確実です。
+> 根拠: CloudFormation Hooks User Guide「Hooks concepts」、Control Tower Controls Reference「Control behavior and guidance」原文。
 
 

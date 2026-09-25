@@ -139,3 +139,12 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 13: 「組織外アカウントはソース側が集約アカウントを認可する」 | ⚠️ 原文は Authorization の定義と「Organizations なら不要」のみ。組織外の手順は推論 |
 | 13: ネットワークアクティビティイベント、CloudTrail/Config の料金、Config レコーダー、Logs Insights・メトリクスフィルター・異常検知、サブスクリプション宛先の作成手順、EventBridge の集約 | 未確認 |
 
+
+## 2026-09-26（qa/organizations-scp.md Q4）
+根拠: CloudFormation Hooks User Guide「Hooks concepts」、Control Tower Controls Reference「Control behavior and guidance」原文（curl）
+
+| 対象 | 結果 |
+|---|---|
+| Q4: フックの呼び出しタイミングは CloudFormation と Cloud Control API の操作の直前、Control Tower のプロアクティブコントロールは CloudFormation でプロビジョニングされるリソースに適用 | ✅ 原文どおり |
+| Q4: Terraform AWS プロバイダーが各サービス API を直接呼ぶため対象外 | ➕ 原文に Terraform の記述はなく、上記の原文からの推論 |
+| Q4: awscc プロバイダー（Cloud Control API 経由）ならフックが効く可能性 | 未確認 |
