@@ -23,7 +23,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 ## 進め方（Q&A運用）
 1. `notes/weekN/` の要点ノートを読む（HTMLで読むなら `npm i && npm run build:html` → `docs/index.html` を開く。`docs/` は生成物で gitignore 済み）
 2. 気になった仕様や、自分の理解が合っているか不安な点を、トピック別ファイル（`qa/iam.md` など）に `Qn 質問（自分の理解も書く）` として追記する
-3. AIに「事実確認して」と依頼し、`> **AI回答（日付）**` の引用ブロックで根拠つきの回答・訂正を書き込んでもらう
+3. AIに「事実確認して」と依頼し、質問の直下に、根拠つきの回答・訂正を普通の段落で書き込んでもらう
 4. 間違っていた理解は `qa/mistakes.md` に記録し、週末に見直す
 
 ## Week1 ノート

@@ -49,16 +49,12 @@ Account Factory は標準構成で新規アカウントを払い出す仕組み�
 
 ## Q4. 「CloudFormation を経由しない作成」ということは、例えば Terraform applyで作成したリソースも対象外ですか？
 
-> AI回答（2026-09-26）
-> 基本的にはそのとおりで、通常の Terraform（AWS プロバイダー）で apply したリソースは、CloudFormation フックの対象外です。
->
-> 理由です。フックが呼び出されるのは、公式ドキュメント上、CloudFormation がスタックやリソースを作成・更新・削除する直前と、Cloud Control API がリソースを作成・更新・削除する直前です。Terraform の AWS プロバイダーは、S3 や EC2 などの各サービスの API を直接呼び出します。CloudFormation も Cloud Control API も通らないため、フックが呼ばれる場面がありません。Control Tower のプロアクティブコントロールも、CloudFormation フックで実装されていて、CloudFormation でプロビジョニングされるリソースに適用されると原文にあります。したがって、Terraform で作る分には効きません。
->
-> 例外の可能性です。フックのターゲットには、Cloud Control API 対応リソース（CLOUD_CONTROL）を指定できます。Terraform にも Cloud Control API 経由でリソースを作るプロバイダー（awscc）があるので、こちらを使う場合はフックが効く可能性があります。ただし、この点は原文で確認できていないので、未確認です。
->
-> 補足です。コンソールや CLI で直接作った場合も、同じ理由でフックの対象外です。
->
-> 試験での判断: Terraform やコンソール、CLI など経路を問わず禁止したいなら、SCP（または RCP）を使います。SCP は API 呼び出しの認可段階で効くので、経路に関係ありません。フックは CloudFormation デプロイ時の事前検査に向いています。作成後の設定違反の検知なら Config ルールです。Terraform で運用している組織は、フックだけに頼らず、SCP でガードレールを敷くのが確実です。
-> 根拠: CloudFormation Hooks User Guide「Hooks concepts」、Control Tower Controls Reference「Control behavior and guidance」原文。
+基本的にはそのとおりで、通常の Terraform（AWS プロバイダー）で apply したリソースは、CloudFormation フックの対象外です。
 
+理由です。フックが呼び出されるのは、公式ドキュメント上、CloudFormation がスタックやリソースを作成・更新・削除する直前と、Cloud Control API がリソースを作成・更新・削除する直前です。Terraform の AWS プロバイダーは、S3 や EC2 などの各サービスの API を直接呼び出します。CloudFormation も Cloud Control API も通らないため、フックが呼ばれる場面がありません。Control Tower のプロアクティブコントロールも、CloudFormation フックで実装されていて、CloudFormation でプロビジョニングされるリソースに適用されると原文にあります。したがって、Terraform で作る分には効きません。
 
+例外の可能性です。フックのターゲットには、Cloud Control API 対応リソース（CLOUD_CONTROL）を指定できます。Terraform にも Cloud Control API 経由でリソースを作るプロバイダー（awscc）があるので、こちらを使う場合はフックが効く可能性があります。ただし、この点は原文で確認できていないので、未確認です。
+
+補足です。コンソールや CLI で直接作った場合も、同じ理由でフックの対象外です。
+
+試験での判断: Terraform やコンソール、CLI など経路を問わず禁止したいなら、SCP（または RCP）を使います。SCP は API 呼び出しの認可段階で効くので、経路に関係ありません。フックは CloudFormation デプロイ時の事前検査に向いています。作成後の設定違反の検知なら Config ルールです。Terraform で運用している組織は、フックだけに頼らず、SCP でガードレールを敷くのが確実です。
