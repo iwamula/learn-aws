@@ -1,4 +1,4 @@
-# 進捗と次のタスク（最終更新: 2026-09-26（Week4 ノート 19 完了））
+# 進捗と次のタスク（最終更新: 2026-09-26（Week4 ノート 20 完了））
 
 ## 完了
 - [x] README にロードマップ作成（試験日 2026-10-24）
@@ -32,8 +32,8 @@
   - [x] 17 SQS / SNS / EventBridge / Step Functions / API Gateway — 2026-09-26 作成（aws-mcp と curl で原文確認。SQS の Lambda 連携・DLQ リドライブ、API Gateway の統合タイムアウト、EventBridge のスキーマ / API Destinations などは未確認）
   - [x] 18 S3 詳細 / Storage Gateway / FSx / EFS（ストレージ）— 2026-09-26 作成（aws-mcp で原文確認。S3 Standard-IA 等の最小期間、Express One Zone、EFS パフォーマンスモード / レプリケーション、FSx Windows の AD 連携、FSx File Gateway の位置づけなどは未確認）
   - [x] 19 セキュリティ（WAF / Shield / Network Firewall / Secrets Manager / ACM / GuardDuty 補足）— 2026-09-26 作成（aws-mcp で原文確認。WAF の WCU・ルール評価順、Shield Advanced の料金、Secrets Manager と Parameter Store の比較、ACM のエクスポート条件・プライベート CA、GuardDuty 各プランの詳細などは未確認）
-  - [ ] 20 分析（Athena / Glue / Lake Formation / Redshift / Kinesis）
-  - [ ] 各ノート完成後、README の Week4 ノート一覧にリンクを追加する（16〜19 は追加済み）
+  - [x] 20 分析（Athena / Glue / Lake Formation / Redshift / Kinesis / Firehose）— 2026-09-26 作成、curl で公式ドキュメント原文を確認しクイズ6問付き（Athena Iceberg、Glue ETL ジョブ種別、Lake Formation の行・セルフィルター、Redshift Serverless/RA3、Firehose バッファリング、Flink などは未確認）
+  - [ ] 各ノート完成後、README の Week4 ノート一覧にリンクを追加する（16〜20 は追加済み）
 
 - [x] notes/ の md を HTML に変換するスクリプト（2026-09-26）— `npm run build:html`（`scripts/build-html.mjs`、marked、出力は gitignore 済みの `docs/`）。md が正本で、変換に AI トークンは不要。`--watch` 対応。新規ノートを追加したら再実行するだけ
 

@@ -52,6 +52,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 - [17 メッセージングと疎結合（SQS、SNS、EventBridge、Step Functions、API Gateway）](notes/week4/17-messaging-decoupling.md)
 - [18 ストレージ（S3 詳細、Storage Gateway、FSx、EFS）](notes/week4/18-storage.md)
 - [19 セキュリティ補足（WAF、Shield、Network Firewall、Secrets Manager、ACM、GuardDuty）](notes/week4/19-security.md)
+- [20 分析（Athena、Glue、Lake Formation、Redshift、Kinesis、Firehose）](notes/week4/20-analytics.md)
 
 ## 構成
 - `notes/` ドメイン別・週別の要点ノート（Q&A付き）

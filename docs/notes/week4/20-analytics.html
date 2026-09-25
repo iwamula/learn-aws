@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week4-20: 分析（Athena / Glue / Lake Formation / Redshift / Kinesis）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">Athena</a><a class="h2" href="#s2">Glue</a><a class="h2" href="#s3">Lake Formation</a><a class="h2" href="#s4">Redshift</a><a class="h2" href="#s5">Kinesis Data Streams（KDS）</a><a class="h2" href="#s6">Amazon Data Firehose</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s9">Q1. S3 のログを Athena で分析していてコストが高い。スキャン量を減らすには？ また、チームごとにコスト上限を設けたい。</a><a class="h3" href="#s10">Q2. Glue の日次 ETL ジョブで、前回処理済みのデータを再処理せず新しいデータだけを処理したい。</a><a class="h3" href="#s11">Q3. 複数アカウントにまたがるデータレイクの権限を、部署や機密度ごとのタグで管理し、共有された表を Athena でクエリしたい。</a><a class="h3" href="#s12">Q4. 別アカウント / 別リージョンの Redshift クラスターに、データをコピーせず最新のデータを共有したい。</a><a class="h3" href="#s13">Q5. Redshift を AZ 障害に耐えられるようにし、さらにリージョン障害に備えたバックアップも持ちたい。KMS で暗号化している。</a><a class="h3" href="#s14">Q6. 同じ Kinesis データストリームを複数のアプリが読み、読み取りが競合して遅延が増えている。どうする？ ストリームのイベントを 1 か月分保持して再処理もしたい。</a><a class="h2" href="#s15">未確認</a><a class="h2" href="#s16">疑問・確認したい点</a></nav><main><h1>Week4-20: 分析（Athena / Glue / Lake Formation / Redshift / Kinesis）</h1>
+<p>出典（2026-09-26 に docs.aws.amazon.com を curl で取得して原文を確認）: Kinesis Data Streams デベロッパーガイド（クォータ、モード、拡張ファンアウト、保持期間）、Amazon Data Firehose デベロッパーガイド（データ配信、ソース選択）、Athena ユーザーガイド（ワークグループのコスト管理、パフォーマンスチューニング、パーティションプロジェクション、フェデレーテッドクエリ）、Glue ユーザーガイド（クローラー、ジョブブックマーク）、Lake Formation デベロッパーガイド（クロスアカウント、タグベースアクセス制御）、Redshift（データ共有、Spectrum、Multi-AZ、スナップショットのリージョン間コピー、同時実行スケーリング）</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S3 上のデータをそのまま SQL で分析（サーバーレス、スキャン量課金）</td>
+<td><strong>Athena</strong></td>
+</tr>
+<tr>
+<td>スキーマ自動検出（データカタログ）、ETL</td>
+<td><strong>Glue（クローラー、Data Catalog、ETL ジョブ）</strong></td>
+</tr>
+<tr>
+<td>データレイクの細かい権限（列 / 行 / タグ）、クロスアカウント共有</td>
+<td><strong>Lake Formation</strong></td>
+</tr>
+<tr>
+<td>大規模な DWH、複雑な結合、高い同時実行</td>
+<td><strong>Redshift</strong></td>
+</tr>
+<tr>
+<td>S3 のデータも Redshift のテーブルと結合して問い合わせ</td>
+<td><strong>Redshift Spectrum</strong></td>
+</tr>
+<tr>
+<td>リアルタイムのストリームを複数のコンシューマーで処理</td>
+<td><strong>Kinesis Data Streams</strong></td>
+</tr>
+<tr>
+<td>ストリームを S3 / Redshift / OpenSearch などへ自動配信（管理不要）</td>
+<td><strong>Amazon Data Firehose</strong></td>
+</tr>
+<tr>
+<td>ストリームをリアルタイムに集計・加工</td>
+<td><strong>Managed Service for Apache Flink</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">Athena</h2>
+<ul>
+<li><strong>S3 上のデータを標準 SQL で分析</strong>する。Glue Data Catalog のテーブル定義を使う</li>
+<li><strong>ワークグループ</strong>でクエリの実行を分離。<strong>クエリごと・ワークグループごとのデータ使用量の制限</strong>を設定でき、<strong>クエリごとの上限を超えると Athena がクエリをキャンセル</strong>し、<strong>ワークグループの上限を超えると SNS でアラーム</strong>を送れる。<strong>コスト配分タグ</strong>をワークグループに付けて Cost and Usage Report で追跡できる</li>
+<li><strong>パフォーマンス最適化</strong>（公式ガイドの見出し）: <strong>列指向フォーマット</strong>、<strong>パーティション分割とバケット化</strong>、<strong>パーティションプロジェクション</strong>、S3 のスロットリング対策</li>
+<li><strong>パーティションプロジェクション</strong>: テーブルのプロパティから Athena が<strong>パーティションの値と場所を計算</strong>する。Glue Data Catalog へのメタデータ問い合わせ（リモート操作）の代わりに<strong>メモリ内で計算</strong>するので、<strong>パーティション数が非常に多いテーブル</strong>のクエリが速くなり、<strong>パーティション管理も自動化</strong>できる</li>
+<li><strong>フェデレーテッドクエリ</strong>: <strong>データソースコネクタ</strong>で他のデータソースにも SQL を実行する。接続情報は <strong>Glue の接続</strong>に保存し、Glue Data Catalog に登録できる。<strong>クロスアカウントのフェデレーテッドクエリ</strong>も設定できる（詳細は未確認）</li>
+<li>判断: 「S3 のログを、サーバーレスで、たまにアドホックに SQL 分析」→ <strong>Athena</strong>、「スキャン量とコストを抑えたい」→ <strong>Parquet などの列指向 + パーティション</strong>、「チーム別にコスト上限」→ <strong>ワークグループのデータ使用量制限</strong></li>
+</ul>
+<h2 id="s2">Glue</h2>
+<ul>
+<li><strong>クローラー</strong>: データストアをクロールして <strong>Glue Data Catalog にデータベースとテーブルを作成・更新</strong>する。<strong>多くの Glue ユーザーが使う主な方法</strong>（原文）。<strong>1 回の実行で複数のデータストア</strong>をクロールできる</li>
+<li><strong>ジョブブックマーク</strong>: 前回のジョブ実行で<strong>処理済みのデータの状態を保持</strong>し、<strong>再実行時に古いデータの再処理を防ぐ</strong>。スケジュール実行で<strong>新しいデータだけを処理</strong>できる。<strong>JDBC ソース、Relationalize 変換、一部の S3 ソースで実装</strong>されている</li>
+<li>判断: 「S3 に日次で追加されるデータだけを ETL したい」→ <strong>ジョブブックマーク</strong>、「S3 のデータのスキーマを自動検出して Athena で検索」→ <strong>クローラー + Data Catalog</strong></li>
+</ul>
+<h2 id="s3">Lake Formation</h2>
+<ul>
+<li><strong>データレイクの権限管理</strong>を Glue Data Catalog のリソース（データベース、テーブル、列）に対して行う</li>
+<li><strong>クロスアカウント共有</strong>: <strong>AWS RAM</strong> でリソースを共有する。<strong>付与先が同じ組織のアカウントなら共有されたリソースはすぐに使える</strong>。<strong>別組織なら RAM の招待を受け入れる</strong>（付与先のデータレイク管理者）</li>
+<li><strong>共有方式は 2 つ</strong>: <strong>名前付きリソース方式</strong>（データベース / テーブルを直接指定）と <strong>LF-TBAC（タグベースアクセス制御）</strong>。<strong>LF-TBAC は RAM を使ってクロスアカウントに付与</strong>する</li>
+<li><strong>LF-TBAC</strong>: <strong>属性（LF-Tag）<strong>をリソースに付け、プリンシパルに</strong>タグの値</strong>への権限を付与する。<strong>プリンシパルの付与済みタグ値とリソースのタグ値が一致すれば許可</strong>される。<strong>リソースが急速に増える環境</strong>に向く（原文）</li>
+<li><strong>リソースリンク</strong>: <strong>Athena や Redshift Spectrum が共有リソースをクエリに含めるには、リソースリンクが必要</strong></li>
+<li><strong>ハイブリッドアクセスモード</strong>でのクロスアカウント共有もサポートされる（詳細は未確認）</li>
+<li>判断: 「複数アカウントのデータレイクを、部署や機密度ごとのタグで権限管理」→ <strong>Lake Formation の LF-TBAC + RAM</strong>、「共有されたテーブルを Athena でクエリ」→ <strong>リソースリンクを作成</strong></li>
+</ul>
+<h2 id="s4">Redshift</h2>
+<ul>
+<li><strong>データ共有（datashare）</strong>: <strong>クラスター、ワークグループ、AWS アカウント、リージョンをまたいで、コピーや移動なしに最新（ライブ）のデータを共有</strong>する。SELECT / INSERT / UPDATE などの権限をテーブル単位で、USAGE / CREATE をスキーマ単位で付与できる。コミット済みのデータはすぐ全ウェアハウスから見える。用途: 部門間のコラボレーション、データのサービス提供、開発・テスト・本番間の共有</li>
+<li><strong>Redshift Spectrum</strong>: <strong>S3 のデータをテーブルにロードせずに問い合わせる</strong>。<strong>処理の多くは Spectrum 層で行われ、データは S3 に残る</strong>。<strong>複数のクラスターが同じ S3 データを同時に問い合わせ</strong>できる</li>
+<li><strong>Multi-AZ 配置</strong>（RG / RA3 のプロビジョンドクラスター）: <strong>2 つの AZ にコンピュートを配置</strong>し<strong>単一のエンドポイント</strong>でアクセス。<strong>AZ 障害時は残りの AZ のコンピュートが処理を継続</strong>。<strong>RPO はゼロ</strong>。<strong>課金は Single-AZ と同じ時間単価</strong>で、<strong>ストレージは共有</strong>なので同額</li>
+<li><strong>スナップショットのリージョン間コピー</strong>: <strong>一度に 1 つの宛先リージョンにのみ</strong>コピーできる。<strong>宛先リージョンでの自動スナップショットの保持期間は、ソースリージョンとは別に設定</strong>できる。<strong>KMS で暗号化したクラスターは、宛先リージョンのカスタマー管理キーを Redshift が使えるよう「スナップショットコピーグラント」を作成</strong>して指定する（ノート 10 の KMS と同じ発想）</li>
+<li><strong>同時実行スケーリング（Concurrency Scaling）</strong>: <strong>クラスターの容量を自動で追加</strong>し、<strong>読み取りと書き込みの両方のクエリ</strong>の増加に対応。どのクエリを送るかは <strong>WLM キュー</strong>で設定。<strong>Redshift Serverless</strong> は容量を自動でプロビジョニングしてスケールし、<strong>使った分だけ</strong>課金（ワークグループと名前空間で管理）</li>
+<li>判断: 「別アカウント / 別リージョンの Redshift に、コピーなしで最新データを共有」→ <strong>データ共有</strong>、「S3 のデータレイクと DWH を 1 つの SQL で結合」→ <strong>Spectrum</strong>、「AZ 障害に耐えたい DWH」→ <strong>Multi-AZ（RA3）</strong>、「DR 用にリージョン間でバックアップ」→ <strong>スナップショットのリージョン間コピー（KMS はグラント）</strong>、「BI の同時アクセスが急増」→ <strong>同時実行スケーリング</strong></li>
+</ul>
+<h2 id="s5">Kinesis Data Streams（KDS）</h2>
+<ul>
+<li><strong>容量モード</strong>: <strong>オンデマンド（Standard / Advantage）<strong>と</strong>プロビジョニング</strong>。<strong>オンデマンド</strong>は容量計画不要で自動スケールし、<strong>過去 30 日のピーク書き込みスループットの最大 2 倍</strong>まで受け入れる。<strong>Advantage</strong> はアカウント単位のモードで、書き込み容量の<strong>事前のウォーミング</strong>、ストリームごとの固定料金なし。<strong>プロビジョニング</strong>は<strong>シャード数を自分で指定</strong>（増減可能）</li>
+<li><strong>シャードの上限</strong>: 1 シャードあたり<strong>書き込み 1 MB/秒 または 1,000 レコード/秒</strong>、<strong>読み取り 2 MB/秒 または 2,000 レコード/秒</strong></li>
+<li><strong>保持期間</strong>: <strong>既定 24 時間、最大 8,760 時間（365 日）</strong></li>
+<li><strong>コンシューマー</strong>: <strong>共有スループット（GetRecords）<strong>は</strong>シャードあたり合計 2 MB/秒を全コンシューマーで共有</strong>（遅延は 1 つで約 200 ms、5 つで約 1,000 ms）。<strong>拡張ファンアウト（EFO）<strong>は</strong>コンシューマーごとに専用の 2 MB/秒/シャード</strong>、<strong>プッシュ型（HTTP/2 の SubscribeToShard）<strong>で</strong>遅延は約 70 ms</strong>。<strong>EFO は追加料金</strong>（データ取得料金 + コンシューマー・シャード時間）。<strong>登録できる EFO コンシューマーは 20（Standard / プロビジョニング）、50（Advantage）</strong></li>
+<li>判断: 「複数のアプリが同じストリームを低遅延で読む、読み取りが競合する」→ <strong>拡張ファンアウト</strong>、「トラフィックが予測不能」→ <strong>オンデマンド</strong>、「トラフィックが安定していてコストを抑えたい」→ <strong>プロビジョニング</strong>（この判断はコスト面の一般論で、料金は未確認）、「数日〜1 年分のイベントを再処理」→ <strong>保持期間を延長（最大 365 日）</strong></li>
+</ul>
+<h2 id="s6">Amazon Data Firehose</h2>
+<ul>
+<li><strong>ソース</strong>: <strong>Direct PUT</strong>（SDK、Lambda、CloudWatch Logs、Kinesis Agent など）、<strong>Kinesis Data Streams</strong>、<strong>Amazon MSK</strong></li>
+<li><strong>配信先</strong>: <strong>S3、Redshift、OpenSearch Service / Serverless、Splunk、HTTP エンドポイント、Snowflake</strong></li>
+<li><strong>S3 へは、バッファリング設定に従ってレコードを連結して 1 つのオブジェクトとして配信</strong>する。<strong>Redshift へは、まず S3 に配信してから COPY コマンド</strong>でロード</li>
+<li>**配信は少なくとも 1 回（at-least-once）**で、<strong>重複が起こりうる</strong>。<strong>S3、Apache Iceberg、Snowflake の配信先は重複の対象外</strong>（原文）</li>
+<li>判断: 「ストリームを S3 / Redshift に自動でロード、運用不要」→ <strong>Firehose</strong>、「複数のコンシューマーで独自に処理、リプレイ」→ <strong>KDS</strong>、「KDS の結果を S3 にも保存」→ <strong>KDS をソースにした Firehose</strong></li>
+</ul>
+<h2 id="s7">判断ポイント</h2>
+<ul>
+<li>「S3 のデータをサーバーレスで SQL 分析、スキャン量を減らす」→ <strong>Athena + Parquet + パーティション（多い場合はパーティションプロジェクション）</strong></li>
+<li>「Athena のチーム別コスト上限」→ <strong>ワークグループのデータ使用量制限</strong></li>
+<li>「日次の ETL で新しいデータだけ処理」→ <strong>Glue ジョブブックマーク</strong></li>
+<li>「複数アカウントのデータレイクの権限をタグで管理」→ <strong>Lake Formation LF-TBAC（RAM 経由）</strong></li>
+<li>「別リージョンの Redshift にコピーなしで共有」→ <strong>Redshift データ共有</strong></li>
+<li>「DWH の AZ 障害耐性」→ <strong>Redshift Multi-AZ（RA3、RPO ゼロ）</strong></li>
+<li>「Redshift のリージョン間 DR」→ <strong>スナップショットのリージョン間コピー（KMS 暗号化はスナップショットコピーグラント）</strong></li>
+<li>「ストリームの複数コンシューマーの読み取り競合」→ <strong>KDS 拡張ファンアウト</strong></li>
+<li>「ストリームの S3 / Redshift への自動配信」→ <strong>Firehose</strong></li>
+</ul>
+<h2 id="s8">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s9">Q1. S3 のログを Athena で分析していてコストが高い。スキャン量を減らすには？ また、チームごとにコスト上限を設けたい。</h3>
+<details><summary>答え</summary>
+Parquet などの列指向フォーマットにしてパーティション分割する（パーティションが非常に多い場合はパーティションプロジェクションでメタデータ問い合わせも減らせる）。チーム別の上限は、ワークグループごとにクエリごと・ワークグループごとのデータ使用量制限を設定する。クエリごとの上限を超えるとキャンセルされ、ワークグループの上限を超えると SNS でアラームを送れる。
+</details>
+
+<h3 id="s10">Q2. Glue の日次 ETL ジョブで、前回処理済みのデータを再処理せず新しいデータだけを処理したい。</h3>
+<details><summary>答え</summary>
+ジョブブックマークを有効にする。前回の実行の処理済み状態を保持し、再処理を防ぐ。JDBC ソース、Relationalize 変換、一部の S3 ソースで実装されている。
+</details>
+
+<h3 id="s11">Q3. 複数アカウントにまたがるデータレイクの権限を、部署や機密度ごとのタグで管理し、共有された表を Athena でクエリしたい。</h3>
+<details><summary>答え</summary>
+Lake Formation のタグベースアクセス制御（LF-TBAC）で LF-Tag をリソースに付け、タグの値への権限をプリンシパルに付与する。クロスアカウントは AWS RAM で共有される（同じ組織なら共有はすぐ使える、別組織なら招待の承認が必要）。Athena や Redshift Spectrum で共有リソースをクエリするにはリソースリンクが必要。
+</details>
+
+<h3 id="s12">Q4. 別アカウント / 別リージョンの Redshift クラスターに、データをコピーせず最新のデータを共有したい。</h3>
+<details><summary>答え</summary>
+Redshift のデータ共有（datashare）。クラスター、ワークグループ、アカウント、リージョンをまたいでライブのデータを共有できる。コピーや移動は不要で、コミット済みのデータはすぐ見える。
+</details>
+
+<h3 id="s13">Q5. Redshift を AZ 障害に耐えられるようにし、さらにリージョン障害に備えたバックアップも持ちたい。KMS で暗号化している。</h3>
+<details><summary>答え</summary>
+AZ 障害には Multi-AZ 配置（RG / RA3 のプロビジョンドクラスター、2 つの AZ に配置し単一エンドポイント、RPO ゼロ、時間単価は Single-AZ と同じ）。リージョン障害には、スナップショットを別リージョンにコピーする（宛先は一度に 1 リージョン）。KMS 暗号化のクラスターは、宛先リージョンのカスタマー管理キーを Redshift が使えるようスナップショットコピーグラントを作成して指定する。
+</details>
+
+<h3 id="s14">Q6. 同じ Kinesis データストリームを複数のアプリが読み、読み取りが競合して遅延が増えている。どうする？ ストリームのイベントを 1 か月分保持して再処理もしたい。</h3>
+<details><summary>答え</summary>
+拡張ファンアウト（EFO）を使う。コンシューマーごとに専用の 2 MB/秒/シャードを持ち、プッシュ型で遅延は約 70 ms。共有スループットはシャードあたり合計 2 MB/秒を全コンシューマーで共有し、5 つで約 1,000 ms まで遅延が増える。EFO は追加料金あり、登録上限は 20（Advantage は 50）。保持期間は既定 24 時間から最大 365 日まで延長できる。
+</details>
+
+<h2 id="s15">未確認</h2>
+<ul>
+<li><strong>Athena</strong>: <strong>Iceberg テーブル</strong>、<strong>Athena for Apache Spark</strong>、<strong>クエリ結果の再利用</strong>、<strong>フェデレーテッドクエリのクロスアカウント設定の詳細</strong>、<strong>料金（スキャン量あたり）</strong>、<strong>パーティションプロジェクションの制限事項</strong></li>
+<li><strong>Glue</strong>: <strong>ETL ジョブの種類（Spark / Python シェル / ストリーミング）</strong>、<strong>DataBrew</strong>、<strong>Glue Schema Registry</strong>、<strong>ワークフロー / トリガー</strong>、<strong>クローラーの分類子とスケジュール</strong>、<strong>クロスアカウントクローリング</strong>、<strong>料金（DPU）</strong></li>
+<li><strong>Lake Formation</strong>: <strong>ハイブリッドアクセスモードの詳細</strong>、<strong>行・セルレベルのフィルター</strong>、<strong>クロスアカウント共有のバージョン設定（バージョン 3 以上）の意味</strong>、<strong>組織単位への付与</strong></li>
+<li><strong>Redshift</strong>: <strong>RA3 / ノードタイプ</strong>、<strong>Serverless の RPU と課金</strong>、<strong>Multi-AZ の RTO</strong>、<strong>Spectrum の制約と課金</strong>、<strong>同時実行スケーリングの無料枠</strong>、<strong>ストリーミング取り込み、Zero-ETL 統合</strong>、<strong>WLM 自動 / 手動</strong>、<strong>リージョン間コピーの Serverless 対応</strong></li>
+<li><strong>Kinesis</strong>: <strong>プロビジョニングとオンデマンドの料金比較と切り替えの制約</strong>、<strong>KCL</strong>、<strong>Managed Service for Apache Flink（Studio ノートブック、SQL）</strong>、<strong>Firehose のバッファリングヒント（サイズ / 間隔）と Lambda 変換、動的パーティショニング、Parquet 変換</strong>、<strong>シャードの分割 / 結合</strong></li>
+<li><strong>その他</strong>: <strong>EMR、QuickSight、OpenSearch Service、MSK、Data Exchange</strong></li>
+</ul>
+<h2 id="s16">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>
