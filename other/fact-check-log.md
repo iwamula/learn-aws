@@ -195,3 +195,15 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 18: FSx 4 種の配置・SLA・リージョン間レプリケーション（比較表）、Lustre のスクラッチ / 永続・DRA（最大 8）、ONTAP のプロトコル、EFS のストレージクラス・ライフサイクル既定（30/90 日）・スループットモード | ✅ 原文どおり |
 | 18: MRAP が Global Accelerator を使い Transfer Acceleration 不要、アクセスポイント上限 10,000、Deep Archive 約 $1/TB | ➕ AWS ブログの記述（DG 原文では未確認） |
 | 18: S3 Standard-IA 等の最小期間、Express One Zone、Glacier 取り出しオプション、FSx File Gateway の位置づけ、Windows の AD 連携、EFS のパフォーマンスモード・レプリケーション | 未確認 |
+
+## 2026-09-26（Week4 ノート 19）
+根拠: aws-mcp の search_documentation で取得した公式ドキュメント原文（WAF / Shield / Secrets Manager / GuardDuty / Firewall Manager の各ガイド、Prescriptive Guidance、re:Post）。一部は AWS ブログ・製品ページ（ノート内に明記）
+
+| 対象 | 結果 |
+|---|---|
+| 19: WAF の保護対象リソース、CloudFront スコープは us-east-1、レートベースルール（10〜2,000,000,000、IP ヘッダー集計） | ✅ 原文どおり（NLB が対象外という点は列挙からの読み取り） |
+| 19: Shield Standard / Advanced 比較（有料・1 年、L7 自動緩和、SRT は Enterprise / Business サポート、コスト保護、保護対象 5 種、入口リソースのみ保護して DTO 二重課金回避） | ✅ 原文どおり（比較表は製品ページ） |
+| 19: Secrets Manager（リージョン間レプリケーション、ローテーションの伝播、Lambda リソースポリシーと SourceAccount / SourceArn、KMS 暗号化コンテキスト、RotationToken） | ✅ 原文どおり |
+| 19: Firewall Manager の NACL ポリシー、GuardDuty の複数アカウント設定（EKS_ADDON_MANAGEMENT、GuardDutyManaged タグ） | ✅ 原文どおり |
+| 19: GuardDuty のプロテクションプランと推奨構成、ACM の DNS / HTTP 検証とメール検証廃止、Network Firewall と WAF の比較、WAF の Count モード推奨 | ➕ AWS ブログ・製品ページの記述（DG 原文では未確認） |
+| 19: WAF の WCU・評価順序、Shield Advanced の料金、Secrets Manager と Parameter Store の比較、ACM のエクスポート条件・プライベート CA、GuardDuty 各プランのデータソース、Network Firewall のデプロイモデル | 未確認 |

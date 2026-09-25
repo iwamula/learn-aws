@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week4-19: セキュリティ補足（WAF / Shield / Secrets Manager / ACM / GuardDuty / Network Firewall）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">AWS WAF</a><a class="h2" href="#s2">Shield Standard と Advanced</a><a class="h2" href="#s3">Network Firewall / セキュリティグループ / NACL / WAF の使い分け</a><a class="h2" href="#s4">Secrets Manager</a><a class="h2" href="#s5">ACM</a><a class="h2" href="#s6">GuardDuty（プロテクションプラン）</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">未確認</a><a class="h2" href="#s9">疑問・確認したい点</a></nav><main><h1>Week4-19: セキュリティ補足（WAF / Shield / Secrets Manager / ACM / GuardDuty / Network Firewall）</h1>
+<p>出典（2026-09-26 に aws-mcp の search_documentation で原文を確認）: WAF Developer Guide「What is AWS WAF, Shield Advanced…」、Shield 機能ページ（Getting started）、Prescriptive Guidance「Network account」、wafv2 API リファレンス、re:Post（WAF レートベースルール、Secrets Manager ローテーション、ACM エクスポート）、Secrets Manager ユーザーガイド「Replicate secrets across Regions」「ローテーション」、GuardDuty ユーザーガイド（Runtime Monitoring 複数アカウント）と AWS Security Blog（プロテクションプラン、ACM の検証方式）、Firewall Manager「network ACL policies」、AWS 製品比較ページ（Network Firewall と WAF）。ブログ・製品ページはノート内に明記。組織横断集約は Week1 ノート 07 を参照</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SQL インジェクション / XSS / ボット / L7 の HTTP フラッド対策</td>
+<td><strong>AWS WAF</strong>（マネージドルール、レートベースルール、Bot Control）</td>
+</tr>
+<tr>
+<td>L3/L4 の DDoS（SYN / UDP フラッド、リフレクション）</td>
+<td><strong>Shield Standard</strong>（全顧客、追加料金なし）</td>
+</tr>
+<tr>
+<td>大規模 DDoS、L7 の自動緩和、SRT、DDoS によるコスト急増の補償</td>
+<td><strong>Shield Advanced</strong></td>
+</tr>
+<tr>
+<td>VPC のアウトバウンド制御、侵入防止（IPS）、ドメインフィルタ</td>
+<td><strong>Network Firewall</strong></td>
+</tr>
+<tr>
+<td>複数アカウントへの WAF / Shield / NACL ポリシーの一括適用と是正</td>
+<td><strong>Firewall Manager</strong></td>
+</tr>
+<tr>
+<td>DB 認証情報などの自動ローテーション</td>
+<td><strong>Secrets Manager</strong></td>
+</tr>
+<tr>
+<td>HTTPS 用の証明書の発行と自動更新</td>
+<td><strong>ACM</strong></td>
+</tr>
+<tr>
+<td>アカウント / ワークロードの脅威検出（ログ分析ベース）</td>
+<td><strong>GuardDuty</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">AWS WAF</h2>
+<ul>
+<li><strong>保護できるリソース</strong>: <strong>CloudFront、ALB、API Gateway REST API、AppSync GraphQL API、Cognito ユーザープール、App Runner、Verified Access</strong>。<strong>NLB は原文の列挙に含まれない</strong>（L7 のサービスが対象。API リファレンスの記述からの読み取り）</li>
+<li><strong>CloudFront 用は <code>us-east-1</code>（スコープ CLOUDFRONT）</strong>、他は<strong>リージョナル</strong>（ノート 16 の ACM と同じ性質の制約）</li>
+<li><strong>レートベースルール</strong>: 送信元 IP または<strong>ヘッダー内の IP</strong>（プロキシ / CDN の背後ではこちら）で集計。レート上限は <strong>10〜2,000,000,000</strong>、評価ウィンドウを選択。**範囲を絞る条件（スコープダウン）**も指定できる（re:Post のコンソール手順）</li>
+<li><strong>AWS Managed Rules</strong>（Core Rule Set、Known Bad Inputs など）は OWASP Top 10 相当をカバー。<strong>まず Count モードで検証してから Block に切り替える</strong>（製品比較ページの専門家コメント）。<strong>Bot Control</strong>、<strong>Fraud Control（アカウント乗っ取り / アカウント作成の不正防止）</strong></li>
+<li><strong>WAF と Shield の関係</strong>: <strong>Shield Advanced を使うと WAF の料金は追加なし</strong>（機能比較表: 「Included at no additional charge with AWS Shield Advanced」。保護対象リソースの WAF 利用分。詳細な範囲は未確認）</li>
+</ul>
+<h2 id="s2">Shield Standard と Advanced</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Standard</th>
+<th>Advanced</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>料金</td>
+<td><strong>全 AWS 顧客に追加料金なし</strong></td>
+<td><strong>有料、1 年のサブスクリプション</strong></td>
+</tr>
+<tr>
+<td>一般的な L3/L4 DDoS（SYN / ACK / UDP フラッド、リフレクション）</td>
+<td>✓ 自動インライン緩和</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>大規模イベント向けの追加緩和キャパシティ</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>アプリケーション層（L7）の<strong>自動</strong>緩和</td>
+<td>追加料金で利用可（原文の表）</td>
+<td>✓（WAF ルールを自動生成）</td>
+</tr>
+<tr>
+<td>**Shield Response Team（SRT）**による緩和・事後分析</td>
+<td>✗</td>
+<td>✓（<strong>Enterprise または Business サポートが必要</strong>）</td>
+</tr>
+<tr>
+<td>L3/L4/L7 のイベント通知・履歴レポート、アプリ層トラフィック監視</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>DDoS コスト保護</strong>（Route 53、CloudFront、ELB、EC2）</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>Shield Advanced の保護対象</strong>: <strong>EC2（Elastic IP）、ELB（ALB / NLB / Classic）、CloudFront、Route 53 ホストゾーン、Global Accelerator（標準アクセラレーター）</strong></li>
+<li><strong>SRT のプロアクティブエンゲージメント</strong>: SRT が保護対象リソースを監視し、DDoS の兆候で連絡してくる</li>
+<li><strong>設計上の注意（Prescriptive Guidance）</strong>: <strong>CloudFront → ALB のように連なる構成では、入口のリソース（CloudFront）だけを保護対象にする</strong>と、Shield の <strong>Data Transfer Out 料金を二重に払わずに済む</strong>。<strong>Firewall Manager で大規模に設定</strong>できる。Shield Advanced のメトリクスは <strong>CloudWatch</strong> に出るので、アラームと SNS で通知</li>
+<li>判断: 「DDoS で請求が跳ね上がるのを避けたい」→ <strong>Shield Advanced（コスト保護）</strong>、「攻撃中に専門家の支援」→ <strong>SRT（Enterprise / Business サポート）</strong>、「L7 のフラッドを WAF ルールで自動緩和」→ <strong>Shield Advanced の自動 L7 緩和</strong></li>
+</ul>
+<h2 id="s3">Network Firewall / セキュリティグループ / NACL / WAF の使い分け</h2>
+<ul>
+<li><strong>Network Firewall</strong>: <strong>VPC 境界のネットワークレベル保護</strong>。<strong>ステートフル検査、侵入防止（IPS）、Web（ドメイン）フィルタ、アウトバウンド制御、Suricata 互換ルール</strong>。エンドポイント時間 + 処理 GB で課金。<strong>Firewall Manager で複数アカウントに展開</strong>できる（製品比較ページ）</li>
+<li><strong>WAF</strong>: <strong>HTTP/HTTPS（L7）</strong>。SQL インジェクション、XSS、ボット、レート制限、IP レピュテーション</li>
+<li><strong>Firewall Manager の NACL ポリシー</strong>: 組織内の<strong>サブネットの NACL に、最初 / 最後のルール（インバウンド・アウトバウンド）の存在と順序を強制</strong>し、非準拠を報告（是正も可）。<strong>各アカウントは最初と最後のルールの間に独自ルールを追加できる</strong></li>
+<li>判断: 「VPC からインターネットへの通信を許可ドメインだけに」→ <strong>Network Firewall（ドメインフィルタ）</strong>、「ALB の前で SQL インジェクションを防ぐ」→ <strong>WAF</strong>、「組織全体で NACL の最低限のルールを強制」→ <strong>Firewall Manager の NACL ポリシー</strong></li>
+</ul>
+<h2 id="s4">Secrets Manager</h2>
+<ul>
+<li><strong>リージョン間レプリケーション</strong>: <strong>暗号化されたシークレットデータと、タグ・リソースポリシーなどのメタデータ</strong>をレプリケーション。<strong>レプリカの ARN はリージョン部分だけが異なる</strong>。<strong>ローテーションは主リージョンで実行され、新しい値がすべてのレプリカに伝播</strong>する（レプリカごとのローテーション管理は不要）。<strong>レプリカは独立したシークレットに昇格</strong>できる</li>
+<li><strong>レプリカにはソース DB の接続情報がそのまま入る</strong>。リージョン固有の接続情報が必要なら、<strong>キーと値を追加</strong>する</li>
+<li><strong>特別なリージョン（GovCloud、中国）と商用リージョンの間ではレプリケーション不可</strong>。レプリケーション先のリージョンは事前に<strong>有効化</strong>しておく必要がある</li>
+<li><strong>レプリケーションしなくても、シークレットのあるリージョンのエンドポイントを呼べば、他リージョンから使える</strong></li>
+<li><strong>ローテーション</strong>: <strong>Lambda ローテーション関数</strong>を使う。Secrets Manager が関数を起動できるよう、<strong>Lambda のリソースポリシーで <code>secretsmanager.amazonaws.com</code> に <code>lambda:InvokeFunction</code> を許可</strong>（混同した代理対策に <strong><code>aws:SourceAccount</code></strong> を推奨。<code>aws:SourceArn</code> を付けると<strong>特定のシークレットにしか使えない</strong>）。シークレットがカスタマー管理の KMS キーで暗号化されている場合、Lambda の実行ロールに KMS の権限が付与され、<strong><code>kms:EncryptionContext:SecretARN</code></strong> 条件で対象のシークレットに限定できる</li>
+<li><strong>クロスアカウント / 引き受けたロールでのローテーション</strong>: <strong>2024 年 12 月から、<code>PutSecretValue</code> の呼び出し元の検証のために、ローテーションのトークン（RotationToken）を渡す必要がある</strong>（re:Post。旧コードは <code>RotationFailed</code>）</li>
+<li>判断: 「DR 用に別リージョンでも同じ DB 認証情報を」→ <strong>シークレットのレプリケーション</strong>（接続先は別途）、「クロスアカウントの Lambda で認証情報をローテーション」→ <strong>Lambda のリソースポリシー + KMS キーポリシー + RotationToken</strong></li>
+</ul>
+<h2 id="s5">ACM</h2>
+<ul>
+<li><strong>リージョナルなサービス</strong>: 証明書は<strong>利用するサービスと同じリージョン</strong>で発行 / インポートする（re:Post）。<strong>CloudFront 用は us-east-1（バージニア北部）</strong></li>
+<li><strong>別リージョン / 別アカウントで使うには</strong>、<strong>エクスポート可能なパブリック証明書</strong>を発行するか、<strong>リージョンごとに個別に発行</strong>する（re:Post。エクスポートの条件・料金は未確認）</li>
+<li><strong>検証方式</strong>: <strong>DNS 検証</strong>（CNAME レコード。<strong>レコードが残っている限り自動更新</strong>）と、<strong>CloudFront 向けの HTTP 検証</strong>（ブログ。<strong>メール検証は今後廃止</strong>。詳細な時期は未確認）</li>
+<li>判断: 「CloudFront に独自ドメインの HTTPS」→ <strong>us-east-1 で ACM 証明書</strong>、「マルチリージョンの ALB に同じドメインの証明書」→ <strong>各リージョンで証明書を発行</strong>、「証明書の更新を自動化」→ <strong>DNS 検証</strong></li>
+</ul>
+<h2 id="s6">GuardDuty（プロテクションプラン）</h2>
+<ul>
+<li><strong>基本（Foundational）</strong>: CloudTrail 管理イベント、VPC フローログ、DNS ログなどを分析（DNS ログは<strong>既定の VPC DNS リゾルバー使用時のみ</strong>処理される。re:Post）</li>
+<li><strong>プロテクションプラン</strong>（ブログ）: <strong>S3 Protection、EKS Protection、Runtime Monitoring（EKS / ECS。EC2 は未確認）、Malware Protection（EC2 / S3）、Lambda Protection、RDS Protection</strong>。<strong>存在するリソースの分だけ課金</strong>され、EKS を使っていなければ EKS Protection を有効にしても課金されない。<strong>新しいサービスを使い始めたときも自動でカバー</strong>できるため、該当するプランを有効にしておく方針</li>
+<li><strong>ワークロード別の推奨</strong>（ブログ）: EC2 + S3 → <strong>Foundational + S3 Protection + Malware Protection for EC2</strong>、コンテナ（EKS / ECS）→ <strong>+ EKS Protection + Runtime Monitoring</strong>、Lambda 中心 → <strong>Foundational + Lambda Protection</strong>（S3 トリガーなら S3 Protection も）、Aurora / RDS → <strong>Foundational + RDS Protection + S3 Protection + Malware Protection for S3</strong></li>
+<li><strong>複数アカウント</strong>: <strong>委任された GuardDuty 管理者アカウント</strong>から、メンバーアカウントごとに Runtime Monitoring などを有効化。<strong>EKS のエージェントは GuardDuty が管理する（<code>EKS_ADDON_MANAGEMENT</code>）か、手動</strong>。<strong>タグ <code>GuardDutyManaged=false</code> で除外</strong>できる。<strong>タグの変更を承認済みプリンシパルだけに制限</strong>するポリシーを組織で設定できる</li>
+<li>判断: 「S3 バケットの不審なアクセス」→ <strong>S3 Protection</strong>、「コンテナ内の不審なプロセス」→ <strong>Runtime Monitoring</strong>、「EBS の悪意あるファイル」→ <strong>Malware Protection for EC2</strong></li>
+</ul>
+<h2 id="s7">判断ポイント</h2>
+<ul>
+<li>「ALB の SQL インジェクション、ボット、クレデンシャルスタッフィング対策」→ <strong>WAF（マネージドルール、Bot Control、Fraud Control）</strong></li>
+<li>「NLB や EC2 に直接来る L3/L4 攻撃」→ <strong>Shield（Standard は自動、大規模は Advanced）</strong>。WAF の保護対象は L7 のリソース（NLB は列挙にない）</li>
+<li>「CloudFront + ALB の Shield Advanced 保護」→ <strong>入口の CloudFront だけ</strong>を保護対象にして DTO の二重課金を避ける</li>
+<li>「DDoS でスケールアウトした分の請求を補償」→ <strong>Shield Advanced（コスト保護）</strong></li>
+<li>「VPC のアウトバウンドを許可ドメインに限定」→ <strong>Network Firewall</strong></li>
+<li>「組織の全アカウントに WAF ルールや NACL ルールを強制」→ <strong>Firewall Manager</strong></li>
+<li>「Secrets のリージョン間 DR」→ <strong>レプリケーション（ローテーションは主リージョンから伝播）</strong></li>
+<li>「CloudFront の証明書」→ <strong>us-east-1 の ACM</strong></li>
+<li>「コンテナ、S3、Lambda の脅威検出を組織全体で」→ <strong>GuardDuty プロテクションプラン + 委任管理者</strong></li>
+</ul>
+<h2 id="s8">未確認</h2>
+<ul>
+<li><strong>WAF</strong>: WebACL の容量ユニット（WCU）の上限、ルールの評価順序と優先度、ルールグループの種類（AWS Managed / 自前 / Marketplace）、ログ出力先（S3 / CloudWatch Logs / Firehose）、CAPTCHA / Challenge、WAF の料金、<strong>Shield Advanced に含まれる WAF 料金の範囲</strong></li>
+<li><strong>Shield</strong>: 保護対象の<strong>ヘルスベース検出</strong>、<strong>Shield Advanced のサブスクリプション料金（月額と組織単位）</strong>、<strong>Route 53 のヘルスチェックとの統合</strong>、<strong>Shield network security director</strong></li>
+<li><strong>Secrets Manager</strong>: <strong>Parameter Store との比較（料金、ローテーション、クロスアカウント）</strong>、<strong>リソースポリシーによるクロスアカウントアクセス</strong>、<strong>管理ローテーション（マネージドローテーション）</strong>、<strong>料金</strong>、<strong>削除の猶予期間</strong>、<strong>KMS キーとのクロスアカウント共有の詳細</strong></li>
+<li><strong>ACM</strong>: <strong>エクスポート可能な証明書の条件と料金</strong>、<strong>プライベート CA（ACM PCA）</strong>、<strong>マネージド更新の条件（30 日 / 60 日前など）</strong>、<strong>メール検証廃止の時期</strong>、<strong>インポートした証明書は自動更新されない点</strong></li>
+<li><strong>GuardDuty</strong>: 各プランの<strong>データソースと検出内容の詳細</strong>、<strong>Extended Threat Detection</strong>、<strong>複数リージョンでの有効化</strong>、<strong>信頼済み IP リスト / 脅威リスト</strong>、<strong>EventBridge 連携と自動対応</strong>、<strong>料金</strong>、<strong>Malware Protection の対象</strong></li>
+<li><strong>Network Firewall</strong>: <strong>ルールグループの種類（ステートレス / ステートフル）</strong>、<strong>分散型とセントラライズ型のデプロイモデル（TGW 連携）</strong>、<strong>TLS 検査</strong></li>
+<li><strong>その他</strong>: <strong>Amazon Inspector / Macie / Detective</strong>（Week1 ノート 07 の未確認項目）、<strong>IAM Access Analyzer</strong>、<strong>Security Hub</strong></li>
+</ul>
+<h2 id="s9">疑問・確認したい点</h2>
+</main></body></html>
