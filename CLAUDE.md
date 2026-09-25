@@ -8,7 +8,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) の学習用リポジ
 ## ディレクトリ構成
 - `README.md` 4週間ロードマップ、進め方、ノート一覧
 - `notes/weekN/` 週別の学習ノート（要点と試験の判断ポイント。各ノート末尾に「疑問・確認したい点」欄）
-- `qa/iam.md` などトピック別ファイル: ユーザーが疑問を `Qn ...` と書き、AIが `> **AI回答（日付）**` の引用ブロックで事実確認して回答する
+- `qa/iam.md` などトピック別ファイル: ユーザーが疑問を `Qn ...` と書き、AIが "An ..." の形式で事実確認して回答する
 - `qa/mistakes.md` 間違えた理解の記録 / `other/fact-check-log.md` 事実確認の記録と未確認項目
 - `tasks/todo.md` 進捗と次のタスク / `tasks/lessons.md` 学んだ注意点
 

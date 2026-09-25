@@ -21,7 +21,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 | - | 10/24 | 試験日 | 前日は軽い復習のみ |
 
 ## 進め方（Q&A運用）
-1. `notes/weekN/` の要点ノートを読む
+1. `notes/weekN/` の要点ノートを読む（HTMLで読むなら `npm i && npm run build:html` → `docs/index.html` を開く。`docs/` は生成物で gitignore 済み）
 2. 気になった仕様や、自分の理解が合っているか不安な点を、トピック別ファイル（`qa/iam.md` など）に `Qn 質問（自分の理解も書く）` として追記する
 3. AIに「事実確認して」と依頼し、`> **AI回答（日付）**` の引用ブロックで根拠つきの回答・訂正を書き込んでもらう
 4. 間違っていた理解は `qa/mistakes.md` に記録し、週末に見直す
@@ -38,6 +38,11 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 ## Week2 ノート
 - [08 Multi-AZ / Multi-Region と DR 4パターン](notes/week2/08-dr-strategies.md)
 - [09 データ層のリージョン間構成](notes/week2/09-cross-region-data.md)
+- [10 KMS（マルチリージョンキー、クロスアカウント、リージョン間コピー）](notes/week2/10-kms.md)
+- [11 コンピュート（ECS/EKS/Fargate/Lambda の選定とスケーリング）](notes/week2/11-compute.md)
+
+## Week3 ノート
+- [12 CloudFormation / CDK（StackSets、ドリフト、変更セット、削除・置換の保護）](notes/week3/12-cloudformation-cdk.md)
 
 ## 構成
 - `notes/` ドメイン別・週別の要点ノート（Q&A付き）

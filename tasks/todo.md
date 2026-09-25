@@ -1,4 +1,4 @@
-# 進捗と次のタスク（最終更新: 2026-09-25（Week2 ノート 09 完了、次は 10））
+# 進捗と次のタスク（最終更新: 2026-09-26（Week3 ノート 12 完了））
 
 ## 完了
 - [x] README にロードマップ作成（試験日 2026-10-24）
@@ -12,12 +12,18 @@
 - [ ] 残りの未確認: Resolver の数値上限、Route 53 Profiles、TGW ピアリングの静的ルート（`other/fact-check-log.md` 参照。優先度低）
 - [ ] Week1 新規ノート05〜07の未確認項目を裏取り: Macie/Inspector/Detective/Firewall Manager の委任管理者、DX Gateway あたりの TGW 数（6 vs 3）、LAG の条件、組織証跡の改ざん防止策
 - [ ] 01 ノート末尾のクイズ形式Q&Aを残すか整理するか、ユーザーに確認
-- [ ] Week2 ノート作成（README のロードマップ: 10/2-10/8）。1本ずつ、公式ドキュメント原文で裏取りしてから書く。新規セッションで再開する場合は CLAUDE.md、このファイル、tasks/lessons.md を読み、notes/week1/05〜07 の書式に合わせる
+- [x] Week2 ノート作成（README のロードマップ: 10/2-10/8）— 08〜11 完了。1本ずつ、公式ドキュメント原文で裏取りしてから書く。新規セッションで再開する場合は CLAUDE.md、このファイル、tasks/lessons.md を読み、notes/week1/05〜07 の書式に合わせる
   - [x] 08 Multi-AZ / Multi-Region と DR 4パターン（Backup & Restore、Pilot Light、Warm Standby、Multi-site Active/Active。RTO/RPO、Route 53 フェイルオーバー、Elastic Disaster Recovery）— 2026-09-25 作成、DR ホワイトペーパー原文で裏取り済み
   - [x] 09 データ層のリージョン間構成（Aurora Global Database、DynamoDB Global Tables、S3 CRR/SRR、RDS リードレプリカ、ElastiCache Global Datastore）— 2026-09-25 作成、各公式ドキュメント原文で裏取り済み。次は 10
-  - [ ] 10 KMS（マルチリージョンキー、キーポリシーとクロスアカウント、リージョン間コピー時の暗号化）
-  - [ ] 11 コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）
-  - [ ] 各ノート完成後、README の Week2 ノート一覧にリンクを追加する（08・09 は追加済み）
+  - [x] 10 KMS（マルチリージョンキー、キーポリシーとクロスアカウント、リージョン間コピー時の暗号化、ローテーション）— 2026-09-25 作成、KMS/S3/EBS/RDS 公式ドキュメント原文で裏取り済み。次は 11
+  - [x] 11 コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）— 2026-09-26 作成、ECS/EKS/Lambda 公式ドキュメント原文で裏取り済み（Lambda の VPC/AZ、SnapStart 制約は未確認）
+  - [ ] 各ノート完成後、README の Week2 ノート一覧にリンクを追加する（08〜11 は追加済み）
+
+- [ ] Week3 ノート作成（README のロードマップ: 10/9-10/15）。12 は完了。次は 13。案: 13 監視（CloudWatch/X-Ray、Config、CloudTrail の組織横断）、14 コスト最適化（Cost Explorer、Savings Plans/RI、Compute Optimizer）、15 移行（DMS/SCT、DataSync、Snow、MGN、7R）。書式は notes/week2 に合わせる
+  - [x] 12 CloudFormation/CDK — 2026-09-26 作成、CloudFormation/CDK 公式ドキュメント原文で裏取り済み（drift-aware 変更セット、Concurrency mode、終了保護などは未確認）
+  - [ ] 各ノート完成後、README の Week3 ノート一覧にリンクを追加する（12 は追加済み）
+
+- [x] notes/ の md を HTML に変換するスクリプト（2026-09-26）— `npm run build:html`（`scripts/build-html.mjs`、marked、出力は gitignore 済みの `docs/`）。md が正本で、変換に AI トークンは不要。`--watch` 対応。新規ノートを追加したら再実行するだけ
 
 ## メモ
 - ユーザーは各ノートで気になった点を `Qn` として書き込み、AIに事実確認させる運用（クイズ形式ではない）

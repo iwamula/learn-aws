@@ -78,3 +78,50 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 09: RDS クロスリージョンレプリカの暗号化（ソース暗号化必須、宛先の KMS キー） | ✅ 原文どおり |
 | 09: ElastiCache Global Datastore（ノードベースのみ、リージョン間の自動フェイルオーバー非対応） | ✅ 原文どおり |
 | 09: Aurora write forwarding の整合性レベル、RPO 管理機能、MRSC の対応リージョン、S3 クロスアカウントの所有者上書き | 未確認 |
+
+## 2026-09-25（Week2 ノート 10）
+根拠: 公式ドキュメント原文（curl）— KMS Developer Guide（Multi-Region keys、Default key policy、外部アカウントでの利用、Rotate keys）、S3 User Guide（Replicating encrypted objects）、EBS User Guide（Copy snapshot）、RDS User Guide（Copy snapshot）
+
+| 対象 | 結果 |
+|---|---|
+| 10: マルチリージョンキー（同一キーID/マテリアル、変換不可、共有/独立プロパティ、ローテーションはプライマリのみ、EXTERNAL は各レプリカにインポート、プライマリ削除はレプリカ削除後、カスタムキーストア不可、AWS マネージドキーは単一リージョン、S3 CRR はシングルリージョン扱い） | ✅ 原文どおり |
+| 10: キーポリシーの root 委任文、クロスアカウントは両ポリシー必須、有効な操作の限定、CloudTrail 両側記録 | ✅ 原文どおり |
+| 10: S3 CRR の SSE-KMS（既定では複製されない、SourceSelectionCriteria、宛先キー指定、ロール権限、ETag の変化）、EBS/RDS スナップショットコピーの暗号化 | ✅ 原文どおり（KMS 権限の細部は原文の一部のみ確認） |
+| 10: ローテーション（CMK は既定で無効・既定 365 日、AWS マネージドキーは約365日で常時） | ✅ 原文どおり |
+| 10: カスタムローテーション期間の範囲、キー削除の待機期間、暗号化スナップショットのクロスアカウント共有制約、グラント/条件キー/XKS、KMS クォータ | 未確認 |
+
+## 2026-09-25（qa/ 追加質問: ExternalId、CloudFormation フック）
+根拠: 公式ドキュメント原文（curl）— IAM User Guide「External IDs for third party access」、CloudFormation Hooks User Guide「What are CloudFormation Hooks?」「Hooks concepts」
+
+| 対象 | 結果 |
+|---|---|
+| qa/iam.md Q3: ExternalId の目的（confused deputy 防止）、秘密ではない、サードパーティ側が生成、顧客ごとに1つ、2〜1,224文字と使用可能な記号、コンソールのロール切り替えでは使えない、sts:ExternalId 条件 | ✅ 原文どおり |
+| qa/organizations-scp.md Q3: フックの目的、失敗モード FAIL/WARN、ターゲット（RESOURCE/STACK/CHANGE_SET/CLOUD_CONTROL）、アクション、実装4種、WARN で先に検証する推奨 | ✅ 原文どおり |
+| qa/organizations-scp.md Q3: 「CloudFormation を経由しない作成は止められない」 | ⚠️ 原文にこの一文はなく、フックが CloudFormation / Cloud Control API の操作の直前に呼ばれるという説明からの推論。Control Tower 側の記述（CloudFormation 経由のみ）とは整合 |
+| qa/organizations-scp.md Q3: フックはアカウント・リージョン単位で有効化する、スタックフィルターの詳細 | 未確認 |
+| qa/iam.md Q3: 「自社内の別アカウント間では通常 ExternalId は不要」 | 未確認（原文の "When should I use an external ID?" の条件は全文を読んでいないため、一般的な理解として記載） |
+
+## 2026-09-26（Week2 ノート 11）
+根拠: 公式ドキュメント原文（curl）— ECS Developer Guide（capacity providers、Fargate、service auto scaling、task placement、service parameters）、EKS User Guide（compute、Fargate、autoscaling）、Lambda Developer Guide（concurrency、reserved concurrency、SnapStart、Resilience）
+
+| 対象 | 結果 |
+|---|---|
+| 11: ECS キャパシティプロバイダー（種類、戦略内で混在不可、起動タイプ間更新不可）、Fargate の分離、FARGATE_SPOT の 2 分前警告 | ✅ 原文どおり |
+| 11: ECS のサービス既定の spread（AZ）、binpack/random/spread、戦略はベストエフォート・制約は拘束、Service Auto Scaling の方式、SQS バックログ、最小 0 | ✅ 原文どおり |
+| 11: EKS のコンピュート選択肢、Auto Mode（Karpenter ベース、SSH/カスタム AMI 不可）、EKS on Fargate の制約、Karpenter に SLA なし、Cluster Autoscaler は ASG | ✅ 原文どおり |
+| 11: Lambda の同時実行数の式、上限 1,000、予約（上下限・無料・残り 100）、プロビジョニング済み（有料）、SnapStart の位置づけ | ✅ 原文どおり |
+| 11: Lambda のスケーリング速度（10 秒あたり 1,000 実行環境） | ⚠️ 同ページに「500 のバースト / 10 秒」の記述もあり、整合を未確認 |
+| 11: Lambda の VPC 設定と AZ、SnapStart のランタイム制約、ECS デプロイ方式、App Runner/Batch との比較 | 未確認 |
+
+## 2026-09-26（Week3 ノート 12）
+根拠: 公式ドキュメント原文（curl）— CloudFormation User Guide（StackSets 概念・サービスマネージド権限・自動デプロイ・アカウントゲート・StackSet ドリフト、ドリフト検出、変更セット、スタックポリシー、ロールバック継続、Export、ネストスタック）、Template Reference（DeletionPolicy、UpdateReplacePolicy、CreationPolicy）、CDK v2 Developer Guide（bootstrapping、constructs）
+
+| 対象 | 結果 |
+|---|---|
+| 12: StackSets の権限モデル、サービスマネージドの制約（管理アカウントには展開されない、委任管理者の権限、ネスト・マクロ非対応）、自動デプロイ（アカウントフィルター非考慮、StackSet 単位、依存関係 10/100） | ✅ 原文どおり |
+| 12: 操作オプション（Failure tolerance はリージョンごと・切り捨て、Region concurrency 既定 Sequential、アカウントゲートの関数名とスキップ挙動）、スタックインスタンスのステータス | ✅ 原文どおり |
+| 12: ドリフト検出（明示プロパティのみ、ネスト非対象、対象ステータス、StackSet のドリフト判定）、変更セット（成功保証なし、実行で他の変更セットが削除） | ✅ 原文どおり |
+| 12: DeletionPolicy / UpdateReplacePolicy（既定、RDS の例外、置換には効かない、RetainExceptOnCreate、Snapshot 対応）、スタックポリシー、ContinueUpdateRollback と resources-to-skip、Export の制約と GetStackOutput、CreationPolicy 対応リソース | ✅ 原文どおり |
+| 12: CDK のコンストラクト L1/L2/L3、ブートストラップの内容（S3/ECR/IAM、CDKToolkit、環境ごと） | ✅ 原文どおり |
+| 12: 「DB は DeletionPolicy と UpdateReplacePolicy の両方を付ける」 | ⚠️ 原文にそう推奨する記述はなく、原文の例が両方 Retain であることのみ。ノートは例の説明に修正済み |
+| 12: drift-aware 変更セット、Concurrency mode の詳細、終了保護、サービスロール、Resource type support の範囲、CDK の diff/Pipelines | 未確認（ページ取得に失敗、または未取得） |
