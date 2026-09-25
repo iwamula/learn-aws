@@ -40,12 +40,25 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 |---|---|
 | 05: Control Tower の Log Archive / Audit、AFT、ID ソース1つ、Simple AD 非対応、SCIM、クォータ（7,000 / 100 / 6 / 3,500） | ✅ 原文と一致 |
 | 06: DX 3モデルと SLA（最大 99.99%、高 99.9%、開発/テストはSLAなし）、BFD、BGP タイマー、graceful restart 非推奨 | ✅ 原文と一致 |
-| 06: DX Gateway あたりの TGW 数 | ⚠️ クォータ表は6、re:Post のVIF解説は最大3で**不一致**。要再確認 |
+| 06: DX Gateway あたりの TGW 数 | ⚠️ クォータ表は6、re:Post のVIF解説は最大3で**不一致**。→ 2026-09-26 に解決（下記） |
 | 07: GuardDuty 自動有効化 NEW/ALL/NONE、Security Hub 中央設定・管理アカウントは委任管理者不可、Config 組織アグリゲーター、CloudTrail 組織証跡と委任管理者 | ✅ 原文と一致 |
 | 06: LAG は同一ロケーション・同一速度で束ねる | 未確認（一般知識で記載） |
 | 05: 許可セットを割り当てるとアカウントに IAM ロールが作られ一時認証情報でアクセス | 未確認（一般知識で記載） |
 | 07: Macie / Inspector / Detective / Firewall Manager の委任管理者 | 未確認 |
 | 07: 組織証跡ログの改ざん防止策（S3 Object Lock 等） | 未確認（ノートからは削除） |
+
+## 2026-09-26（Week1 ノート 05〜07 の未確認項目）
+根拠: aws-mcp の search_documentation / read_documentation で取得した公式ドキュメント原文（Organizations / Macie / Inspector / Detective / Firewall Manager / Direct Connect / TGW / CloudTrail / IAM Identity Center の各ガイド、re:Post）。一部は AWS ブログ（ノート内に明記）
+
+| 対象 | 結果 |
+|---|---|
+| 07: Macie の委任管理者（リージョンごとの指定）、Inspector（リージョンごとに enableDelegatedAdminAccount、Organizations ポリシーでの有効化）、Detective（管理者はリージョンごと、管理アカウント自身も指定可）、Firewall Manager（デフォルト管理者が自動で委任管理者に、追加管理者は最大 9） | ✅ 原文どおり（Macie の 5,000 アカウントは AWS ブログ） |
+| 06: DX Gateway あたりの TGW 数 = 6（調整不可） | ✅ DX クォータ表・TGW クォータ表・re:Post 2 件が一致。VIF 解説の「最大 3」は誤りと判断 |
+| 06: LAG の条件（専用接続のみ、同一帯域、同一 DX エンドポイントに終端、100G/400G は 2 本・それ未満は 4 本、Active/Active、MLAG 非対応） | ✅ 原文どおり |
+| 06: 専用接続あたりの VIF 合計 | ⚠️ ノートの「合計 51」は誤り。クォータ表は Private/Public 50 + Transit 4 で**合計 54**。訂正済み |
+| 07: 組織証跡の改ざん対策 = ログファイル整合性検証（SHA-256 ハッシュ + RSA 署名のダイジェストを毎時配信。改ざん・削除を検知する機能） | ✅ 原文どおり |
+| 07: S3 Object Lock 等による組織証跡ログの改ざん防止 | 未確認（引き続き） |
+| 05: 許可セットの割り当てでアカウントに IAM ロールが作られる（`AWSReservedSSO_` で始まる名前） | ✅ 原文どおり |
 
 ## 2026-09-25（qa/organizations-scp.md Q2）
 | 対象 | 結果 |
