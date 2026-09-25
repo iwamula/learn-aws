@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week1-7: セキュリティサービスの組織横断集約</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">共通の型</a><a class="h2" href="#s1">サービス別</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">疑問・確認したい点</a></nav><main><h1>Week1-7: セキュリティサービスの組織横断集約</h1>
+<h2 id="s0">共通の型</h2>
+<ol>
+<li>管理アカウントで Organizations との<strong>信頼されたアクセス</strong>を有効化</li>
+<li><strong>委任管理者</strong>（通常はセキュリティ/監査アカウント）を指定し、管理アカウントでの日常運用を避ける</li>
+<li>新規メンバーアカウントへの<strong>自動有効化</strong>を設定</li>
+<li>委任管理者に検出結果・構成データを集約</li>
+</ol>
+<p>セキュリティ系サービスは、可能なら<strong>同じアカウントを委任管理者に統一</strong>すると1か所で確認できる（Security Hub の推奨）。</p>
+<h2 id="s1">サービス別</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>サービス</th>
+<th>集約の仕組み</th>
+<th>押さえどころ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>CloudTrail</strong></td>
+<td><strong>組織の証跡</strong>（管理アカウント、または委任管理者が作成）が全メンバーのイベントを記録。メンバーアカウントにも同名の証跡コピーが作られる</td>
+<td>組織証跡の所有者は<strong>常に管理アカウント</strong>。コンソール作成は既定でマルチリージョン</td>
+</tr>
+<tr>
+<td><strong>GuardDuty</strong></td>
+<td>委任管理者 + メンバー。自動有効化は <code>NEW</code>（新規のみ）/ <code>ALL</code>（既存含む全アカウント）/ <code>NONE</code></td>
+<td><strong>リージョンサービス</strong>。委任管理者の指定とメンバー追加を<strong>リージョンごと</strong>に行う。<code>ALL/NEW</code> → <code>NONE</code> にしても既存アカウントは無効化されない</td>
+</tr>
+<tr>
+<td><strong>Security Hub (CSPM)</strong></td>
+<td>委任管理者。<strong>中央設定 (central configuration)</strong> で組織/OU/アカウントに設定ポリシー（有効化するスタンダード・コントロール）を適用</td>
+<td>管理アカウントは委任管理者にできない。<strong>ホームリージョン</strong>（+リンクリージョン）を指定しないと中央設定を使えず、リージョンごとの個別設定になる。<strong>中央管理のアカウントは管理者だけが変更可</strong>（ドリフト防止）</td>
+</tr>
+<tr>
+<td><strong>AWS Config</strong></td>
+<td><strong>アグリゲーター</strong>で複数アカウント/リージョンのデータを1アカウント・1リージョンに集約。組織を指定すれば個別の承認不要（サービスリンクロール）</td>
+<td>委任管理者でも組織全体を集約可能。<strong>メンバーで Config が有効なことが前提</strong>。Config ルールは API で組織全体のアカウントに展開できる</td>
+</tr>
+<tr>
+<td><strong>Macie / Inspector / Detective / Firewall Manager</strong></td>
+<td>同様に委任管理者方式</td>
+<td><strong>未確認</strong>（今回は原文で裏取りしていない。次回確認）</td>
+</tr>
+</tbody></table></div>
+<h2 id="s2">判断ポイント</h2>
+<ul>
+<li>「全アカウント・全リージョンの API ログを1か所に、改ざんを防ぎたい」→ 組織証跡 + Log Archive アカウントの S3（改ざん防止の具体策は別途確認）</li>
+<li>「新規アカウントでも GuardDuty を自動で有効に」→ 委任管理者で自動有効化（<code>NEW</code> か <code>ALL</code>）</li>
+<li>「Security Hub の標準/コントロールを全アカウントで統一し、勝手に変更させない」→ 中央設定ポリシー</li>
+<li>「全アカウントのリソース構成とコンプライアンスを1画面で」→ Config 組織アグリゲーター</li>
+<li>「ルールに反するリソースを組織全体で検出」→ Config ルールの組織展開（API）、または Control Tower の発見コントロール</li>
+<li>「管理アカウントを使わずにセキュリティ運用」→ 委任管理者（管理アカウントには最小限の人だけ）</li>
+<li>「複数リージョンの GuardDuty を見たい」→ リージョンごとに設定が必要（Security Hub のリージョン集約と組み合わせる）</li>
+</ul>
+<h2 id="s3">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

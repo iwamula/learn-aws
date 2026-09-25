@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week2-10: KMS（マルチリージョンキー、クロスアカウント、リージョン間コピーの暗号化）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">マルチリージョンキー</a><a class="h2" href="#s1">キーポリシーとクロスアカウント</a><a class="h2" href="#s2">リージョン間コピー時の暗号化（サービス別）</a><a class="h2" href="#s3">キーのローテーション</a><a class="h2" href="#s4">判断ポイント</a><a class="h2" href="#s5">未確認</a><a class="h2" href="#s6">疑問・確認したい点</a></nav><main><h1>Week2-10: KMS（マルチリージョンキー、クロスアカウント、リージョン間コピーの暗号化）</h1>
+<p>出典（2026-09-25 に原文を curl で確認）: KMS Developer Guide「Multi-Region keys in AWS KMS」「Default key policy」「Allowing users in other accounts to use a KMS key」「Rotate AWS KMS keys」、S3 User Guide「Replicating encrypted objects (SSE-S3, SSE-KMS, DSSE-KMS, SSE-C)」、EBS User Guide「Copy an Amazon EBS snapshot」、RDS User Guide「Copying a DB snapshot」。DR・データ層の文脈は 08・09 ノート</p>
+<h2 id="s0">マルチリージョンキー</h2>
+<ul>
+<li>別リージョンの KMS キーを<strong>同じキーとして交換可能に使える</strong>仕組み。関連キーは<strong>同じキー ID とキーマテリアル</strong>を持つ。あるリージョンで暗号化し、別リージョンで<strong>再暗号化も KMS のクロスリージョン呼び出しもなしに</strong>復号できる</li>
+<li>1 セットにプライマリキーがちょうど 1 つ。レプリカは他リージョン（<strong>同じパーティション内</strong>）に作る。1 リージョンにつきセット内のキーは 1 つ。<strong>プライマリリージョンの切り替え</strong>もできる</li>
+<li><strong>既存のシングルリージョンキーをマルチリージョンに変換できない</strong>（逆も不可）。作成時に決まる。既存データを使うには新しいマルチリージョンキーで<strong>再暗号化</strong>が必要</li>
+<li><strong>共有プロパティ</strong>（プライマリから同期）: キー ID、キーマテリアル、マテリアルの起点、キー仕様、キー用途、自動ローテーション。<strong>独立プロパティ</strong>（同期されない）: <strong>キーポリシー、グラント、有効/無効、エイリアス、タグ、説明</strong>。レプリカごとに管理する</li>
+<li>自動ローテーションの有効化/無効化とオンデマンドローテーションは<strong>プライマリのみ</strong>。AWS_KMS 起点ならマテリアルの全バージョンがレプリカに配られる。<strong>EXTERNAL 起点（インポート）はレプリカごとに同じマテリアルを自分でインポート</strong>する</li>
+<li><strong>プライマリの削除は、全レプリカが削除されるまで実行されない</strong></li>
+<li><strong>カスタムキーストアにはマルチリージョンキーを作れない</strong>。<strong>AWS マネージドキーは常にシングルリージョン</strong></li>
+<li>対応キー: 対称暗号化、非対称、HMAC、インポートマテリアル付き</li>
+<li>課金・クォータ: セット内の<strong>各キーが 1 キーとして</strong>数える。クォータはリージョンごと</li>
+<li>用途: DR、グローバルデータ管理、分散署名、Active-Active。<strong>クライアント側暗号化（AWS Encryption SDK など）で最も効く</strong></li>
+<li><strong>多くの AWS サービスはマルチリージョンキーをシングルリージョンキー扱いにする</strong>。例: <strong>S3 CRR は、両リージョンが関連するマルチリージョンキーでも、宛先リージョンのキーでデータキーを復号・再暗号化する</strong>。マルチリージョンキーにしても S3 の CRR 構成は変わらない（サービスごとの記述を確認する）</li>
+</ul>
+<h2 id="s1">キーポリシーとクロスアカウント</h2>
+<ul>
+<li><strong>KMS のキーポリシーは他のリソースポリシーと違い、アカウントに自動でアクセスを与えない</strong>。既定のキーポリシーの <code>Principal: arn:aws:iam::&lt;アカウント&gt;:root</code> / <code>kms:*</code> の文が、<strong>「IAM ポリシーでアクセスを委任できる」ようにする</strong>文。これがないと、キーを許可する IAM ポリシーは効かない（<strong>拒否する</strong> IAM ポリシーは効く）。キーが管理不能になるリスクも下げる</li>
+<li>API/CLI で作成して既定ポリシーを指定しないと、上の 1 文だけの既定ポリシーになる。コンソールで作ると管理者・利用者・AWS サービス利用の文が追加される</li>
+<li><strong>クロスアカウントは 2 つの許可が両方必要</strong>（どちらか片方では不十分）:<ol>
+<li><strong>キー所有アカウントのキーポリシー</strong>が外部アカウント（または外部のユーザー/ロール）を許可</li>
+<li><strong>外部アカウントの IAM ポリシー</strong>が自アカウントのユーザー/ロールに委任</li>
+</ol>
+</li>
+<li>キーポリシーの Principal を外部アカウント root にすると、外部アカウントの IAM 管理者が委任先を決められる。特定ロールを指定すると、外部側の IAM ポリシーがあっても<strong>キーポリシーで指定した範囲</strong>に制限される</li>
+<li><strong>クロスアカウントで有効な操作は限られる</strong>: 暗号操作、CreateGrant、DescribeKey、GetKeyRotationStatus、GetPublicKey、ListGrants、RetireGrant、RevokeGrant。ScheduleKeyDeletion などを許可しても<strong>効かない</strong></li>
+<li>外部アカウントの権限は、<strong>そのアカウントがキーのあるリージョンで有効</strong>（オプトインリージョン）な場合のみ有効</li>
+<li>クロスアカウントの操作は<strong>呼び出し側とキー所有側の両方の CloudTrail</strong> に記録される</li>
+</ul>
+<h2 id="s2">リージョン間コピー時の暗号化（サービス別）</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>対象</th>
+<th>暗号化の扱い</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S3 CRR</td>
+<td>SSE-S3/SSE-KMS/DSSE-KMS のオブジェクトは、宛先でも<strong>同じ種類の暗号化</strong>（宛先バケットの既定暗号化は使わない）。<strong>SSE-KMS/DSSE-KMS は既定ではレプリケートされない</strong>。<code>SourceSelectionCriteria</code>（SseKmsEncryptedObjects を Enabled）で明示的に有効化し、宛先の<strong>対称 KMS カスタマーマネージドキー ID</strong> を指定する。レプリケーション用 IAM ロールにソースキーの <code>kms:Decrypt</code> と宛先キーの <code>kms:Encrypt</code>（Bucket Key 利用時は <code>kms:GenerateDataKey</code> も）が必要。<strong>KMS キーが別アカウントなら、キー所有者がロールのアカウントに権限を付与する</strong>。未暗号化のソースは宛先の既定暗号化になり、<strong>ETag がソースと変わる</strong>。SSE-C も対象</td>
+</tr>
+<tr>
+<td>EBS スナップショットのコピー</td>
+<td>未暗号化のスナップショットは<strong>コピー時に暗号化できる</strong>（KMS キーを指定。省略すると既定の KMS キー）。暗号化済みは別のキーで再暗号化してコピーできる。アカウント既定で暗号化が有効ならコピーは自動で暗号化される。別リージョン・外部へのデータ転送料金がかかる</td>
+</tr>
+<tr>
+<td>RDS スナップショットのコピー（クロスリージョン）</td>
+<td>暗号化済みスナップショットの別リージョンへのコピーには、<strong>宛先リージョンの KMS キーを指定</strong>する（キーはリージョンごとのため）。共有された未暗号化スナップショットはクロスリージョンコピーできる</td>
+</tr>
+<tr>
+<td>RDS クロスリージョンリードレプリカ</td>
+<td>09 ノート。ソースが暗号化済みで、宛先リージョンのキーを指定</td>
+</tr>
+</tbody></table></div>
+<h2 id="s3">キーのローテーション</h2>
+<ul>
+<li><strong>カスタマーマネージドキー</strong>: 自動ローテーションは<strong>既定では無効</strong>。有効にするとキーマテリアルを<strong>約 365 日ごと</strong>（既定）に新規生成。<strong>オンデマンドローテーション</strong>もできる</li>
+<li><strong>AWS マネージドキー</strong>は<strong>約 365 日ごとに常に自動ローテーション</strong>（ユーザーは設定不可）</li>
+<li>ローテーションは<strong>キーマテリアルを更新するだけ</strong>。キー ID・ARN・エイリアス・ポリシーは変わらず、<strong>保護しているデータへの影響はない</strong>。データの再暗号化は不要</li>
+<li><strong>自動/オンデマンドローテーションの対象は、対称暗号化キー（AWS_KMS 起点と EXTERNAL 起点）</strong>。<strong>非対称キー、HMAC キー、カスタムキーストアのキー</strong>は対象外で、<strong>新しいキーを作成してエイリアスを付け替える</strong>「手動ローテーション」で行う</li>
+<li>ローテーションは<strong>保護データのデータキーの再暗号化・ローテーションをしない</strong>。データキーが漏えいした場合の対策にはならない</li>
+</ul>
+<h2 id="s4">判断ポイント</h2>
+<ul>
+<li>「複数リージョンでキーマテリアル共通、再暗号化なし・リージョン間 KMS 呼び出しなしで復号」→ マルチリージョンキー（クライアント側暗号化、DynamoDB グローバルテーブルなど）</li>
+<li>「既存のシングルリージョンキーをマルチリージョンにしたい」→ 変換不可。新しいキーで再暗号化</li>
+<li>「別アカウントに KMS キーを使わせる」→ <strong>キーポリシー + 外部アカウントの IAM ポリシーの両方</strong></li>
+<li>「IAM ポリシーでキーを許可したのに AccessDenied」→ キーポリシーに <code>root</code> 委任文がない、または他アカウントのキーで外部側/キー側の片方が欠けている</li>
+<li>「S3 CRR で SSE-KMS のオブジェクトも複製」→ SseKmsEncryptedObjects を有効化 + 宛先リージョンの KMS キーを指定 + ロールの権限</li>
+<li>「暗号化 EBS/RDS スナップショットを別リージョンへ」→ 宛先リージョンの KMS キーで再暗号化してコピー</li>
+<li>「未暗号化 EBS スナップショットを暗号化したい」→ コピー時に暗号化を指定</li>
+<li>「ローテーションしても既存データの再暗号化は要るか」→ 不要</li>
+</ul>
+<h2 id="s5">未確認</h2>
+<ul>
+<li>カスタムローテーション期間の範囲（90〜2560 日）</li>
+<li>キー削除の待機期間（7〜30 日）と、削除保留中の挙動</li>
+<li>暗号化 RDS/EBS スナップショットのクロスアカウント共有の制約（AWS マネージドキーで暗号化したものは共有不可か）</li>
+<li>KMS グラントの詳細、<code>kms:ViaService</code> などの条件キー、外部キーストア（XKS）</li>
+<li>DynamoDB グローバルテーブルのレプリカごとの KMS キーの扱い</li>
+<li>KMS の同一リージョン内のリクエストクォータ（S3 の大量レプリケーションでのスロットリング）</li>
+</ul>
+<h2 id="s6">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

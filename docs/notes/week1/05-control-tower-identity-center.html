@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week1-5: Control Tower と IAM Identity Center</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Control Tower（マルチアカウントの土台を自動構築）</a><a class="h2" href="#s1">IAM Identity Center（ワークフォースの SSO）</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">疑問・確認したい点</a></nav><main><h1>Week1-5: Control Tower と IAM Identity Center</h1>
+<h2 id="s0">Control Tower（マルチアカウントの土台を自動構築）</h2>
+<ul>
+<li>Organizations / CloudFormation StackSets / Config / CloudTrail / IAM Identity Center などを束ねて<strong>ランディングゾーン</strong>を作る。OU 単位でコントロール（旧ガードレール）を適用する</li>
+<li>初期構築で共有アカウントが2つできる（既存アカウントを流用することも可能）<ul>
+<li><strong>Log Archive</strong>: 全アカウントの API ログ・リソース構成ログの保管庫</li>
+<li><strong>Audit</strong>: セキュリティ/コンプライアンスチームが全アカウントを参照する制限付きアカウント</li>
+</ul>
+</li>
+<li><strong>Account Factory</strong>: 標準構成でアカウントを払い出す。<strong>Account Factory for Terraform (AFT)</strong> は Terraform パイプラインでアカウントのプロビジョニングとカスタマイズを行う</li>
+<li>コントロールの種別（詳細は 01 ノート）</li>
+</ul>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>種別</th>
+<th>実装</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>予防</td>
+<td>SCP / RCP / 宣言型ポリシー</td>
+<td>違反する操作を拒否。全リージョン対応</td>
+</tr>
+<tr>
+<td>発見</td>
+<td>AWS Config ルール</td>
+<td>違反を検知してダッシュボードに表示。Control Tower 対応リージョンのみ</td>
+</tr>
+<tr>
+<td>プロアクティブ</td>
+<td>CloudFormation フック</td>
+<td>プロビジョニング前に検査。CloudFormation 経由のリソースのみ</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>管理アカウントの root と管理者は、コントロールが拒否する操作も実行できる（意図的な例外）。SCP が管理アカウントに効かないのと同じ発想</li>
+</ul>
+<h2 id="s1">IAM Identity Center（ワークフォースの SSO）</h2>
+<ul>
+<li><strong>1つの組織に ID ソースは1つ</strong>。選択肢は3つ<ul>
+<li>Identity Center ディレクトリ（既定。ユーザー/グループを直接作成）</li>
+<li>Active Directory（AWS Managed Microsoft AD、またはオンプレ AD）。オンプレ AD は<strong>双方向信頼</strong>か <strong>AD Connector</strong> で接続。<strong>SAMBA4 ベースの Simple AD は非対応</strong></li>
+<li>外部 IdP（Okta、Microsoft Entra ID など SAML 2.0）。<strong>SCIM v2.0</strong> でユーザー/グループを自動プロビジョニング（Google Workspace と PingOne はユーザーのみ）</li>
+</ul>
+</li>
+<li><strong>許可セット (Permission Set)</strong> をユーザー/グループ × アカウントに割り当てる。各アカウントに IAM ロールが作られ、一時認証情報でアクセスする（IAM ユーザーとアクセスキーを配らない）</li>
+<li>許可セットには AWS 管理ポリシー、カスタマー管理ポリシー、インラインポリシー、Permissions Boundary を含められる</li>
+<li>許可セットを使うには <strong>Organization インスタンス</strong>が必要（アカウントインスタンスでは使えない）</li>
+<li>管理を<strong>メンバーアカウントに委任</strong>できる。管理アカウントを触る人を減らすため推奨。許可セットのタグとアカウントリストで「特定アカウントだけ割り当て可能な管理者」も作れる</li>
+<li>クォータ（既定）: 設定できるアカウント 7,000（アプリも別に 7,000）。1許可セット×1アカウントに割り当てられるグループは 100。有効化できるリージョンは 6。<code>ProvisionPermissionSet</code> の <code>ALL_PROVISIONED_ACCOUNTS</code> は最大 3,500 アカウント</li>
+</ul>
+<h2 id="s2">判断ポイント</h2>
+<ul>
+<li>「新規アカウントを標準構成・ガードレール付きで素早く払い出す」→ Control Tower Account Factory（Terraform 運用なら AFT）</li>
+<li>「CloudFormation でのデプロイ前に違反リソースを止めたい」→ プロアクティブコントロール</li>
+<li>「全アカウントの監査ログを改ざんされにくい場所へ集約」→ Log Archive アカウント</li>
+<li>「社員が多数の AWS アカウントに SSO。既存の Okta/Entra ID を使いたい」→ IAM Identity Center + 外部 IdP（SAML + SCIM）</li>
+<li>「オンプレ AD のユーザーで AWS にログイン」→ Identity Center + AD（AWS Managed AD の信頼 or AD Connector）</li>
+<li>「管理アカウントへのアクセスを減らしたい」→ Identity Center の委任管理者</li>
+<li>「顧客向けアプリの認証」→ Identity Center ではなく Cognito（Identity Center はワークフォース向け）</li>
+</ul>
+<h2 id="s3">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

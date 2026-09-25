@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week3-15: 移行（7R、DMS / SCT、DataSync、Snow、MGN）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">7R（移行戦略）</a><a class="h2" href="#s2">AWS DMS（Database Migration Service）</a><a class="h2" href="#s3">スキーマ変換（SCT / DMS Schema Conversion）</a><a class="h2" href="#s4">AWS DataSync</a><a class="h2" href="#s5">AWS Snowball Edge</a><a class="h2" href="#s6">AWS Application Migration Service（MGN）</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">未確認</a><a class="h2" href="#s9">疑問・確認したい点</a></nav><main><h1>Week3-15: 移行（7R、DMS / SCT、DataSync、Snow、MGN）</h1>
+<p>出典（2026-09-26 に原文を curl で確認）: Prescriptive Guidance「About the migration strategies」、DMS User Guide「What is AWS DMS?」「Getting started」「Working with AWS DMS tasks」「Creating tasks for ongoing replication」「Homogeneous data migrations」、Schema Conversion Tool User Guide「What is AWS SCT?」、DataSync User Guide「What is DataSync?」「How DataSync works」、Snowball Edge Developer Guide「What is Snowball Edge?」、Application Migration Service User Guide「What is Application Migration Service?」</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>サーバー（物理・仮想・他クラウド）をそのまま EC2 へ、切り替えは数分</td>
+<td><strong>Rehost</strong>（lift and shift）→ <strong>MGN</strong>（継続的ブロックレベルレプリケーション）</td>
+</tr>
+<tr>
+<td>DB を同じエンジンのまま AWS へ（例: オンプレ PostgreSQL → RDS / Aurora PostgreSQL）</td>
+<td><strong>DMS の同種データ移行</strong>（サーバーレス、ネイティブツールでダンプ / リストア）</td>
+</tr>
+<tr>
+<td>DB を別エンジンへ（例: Oracle → PostgreSQL）</td>
+<td><strong>スキーマ変換（DMS Schema Conversion / SCT）+ DMS でデータ移行</strong></td>
+</tr>
+<tr>
+<td>移行中も変更を継続反映して切り替え停止時間を短く</td>
+<td><strong>DMS のフルロード + CDC</strong></td>
+</tr>
+<tr>
+<td>ファイル・オブジェクトをネットワーク越しに S3 / EFS / FSx へ</td>
+<td><strong>DataSync</strong></td>
+</tr>
+<tr>
+<td>回線が細い / 大容量を物理輸送</td>
+<td><strong>Snowball Edge</strong>（※新規顧客は受付終了、下記）</td>
+</tr>
+<tr>
+<td>VPC・リージョン・アカウント間の移動</td>
+<td><strong>Relocate</strong></td>
+</tr>
+<tr>
+<td>ライセンス型製品を SaaS へ置き換え</td>
+<td><strong>Repurchase</strong>（drop and shop）</td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">7R（移行戦略）</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>戦略</th>
+<th>内容</th>
+<th>例・備考</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Retire</strong></td>
+<td>廃止・アーカイブ</td>
+<td>平均 CPU・メモリが 5% 未満は zombie、90 日間 5〜20% は idle。90 日間インバウンド接続なしも対象</td>
+</tr>
+<tr>
+<td><strong>Retain</strong></td>
+<td>移行せず現状維持</td>
+<td>データ所在地要件、物理依存、メインフレーム / AS/400 / Solaris など、直近にアップグレード済み、SaaS 版待ち</td>
+</tr>
+<tr>
+<td><strong>Rehost</strong></td>
+<td>lift and shift。<strong>変更なしで移す</strong></td>
+<td>MGN、Cloud Migration Factory、VM Import/Export で自動化</td>
+</tr>
+<tr>
+<td><strong>Relocate</strong></td>
+<td>オンプレのプラットフォームからクラウド版のプラットフォームへ、多数のサーバーを一度に移す。VPC・リージョン・アカウント間の移動も含む</td>
+<td>新規ハードウェア・アプリ書き換え不要。<strong>最速の移行方法</strong>（アーキテクチャに影響しないため）</td>
+</tr>
+<tr>
+<td><strong>Repurchase</strong></td>
+<td>drop and shop。別の製品・SaaS に置換</td>
+<td>ライセンス型 → SaaS。ユーザー教育、データ移行、AD 連携が次のステップ</td>
+</tr>
+<tr>
+<td><strong>Replatform</strong></td>
+<td>lift, tinker, and shift。<strong>コード変更なしか少しで最適化</strong></td>
+<td>SQL Server → RDS for SQL Server、Graviton、Windows → Linux、.NET Framework → .NET Core、VM → コンテナ（App2Container）</td>
+</tr>
+<tr>
+<td><strong>Refactor / Re-architect</strong></td>
+<td>クラウドネイティブに再設計</td>
+<td><strong>最も複雑でコストが高い</strong>。大規模移行では推奨されない</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>大規模移行で一般的なのは rehost、replatform、relocate、retire</strong>。refactor は「まず rehost / relocate / replatform で移し、移行後にモダナイズ」が原文の推奨</li>
+<li>試験では「変更を最小にして最短で」→ <strong>Rehost / Relocate</strong>、「マネージドサービスの利点を取りたいがアプリは大きく変えない」→ <strong>Replatform</strong>、「スケール・俊敏性のためアーキテクチャから見直す」→ <strong>Refactor</strong></li>
+</ul>
+<h2 id="s2">AWS DMS（Database Migration Service）</h2>
+<ul>
+<li><strong>ソースとターゲットのエンドポイント間でデータを移行</strong>。同種（Oracle → Oracle）も異種（Oracle → PostgreSQL）も可</li>
+<li><strong>どちらか一方のエンドポイントが AWS サービス上にあることが必須</strong>。<strong>オンプレ DB からオンプレ DB への移行には使えない</strong></li>
+<li><strong>タスクは 3 フェーズ</strong>: フルロード（既存データ）→ キャッシュした変更の適用 → <strong>継続的レプリケーション（CDC）</strong></li>
+<li><strong>CDC</strong>: ソースのログをデータベースエンジンのネイティブ API で収集して反映。<strong>リアルタイムではなく、遅延の SLA はない</strong>（数分以上に増えることがある）</li>
+<li><strong>ビュー</strong>は<strong>フルロードのみのタスク</strong>で移行できる。CDC のみ、またはフルロード + CDC のタスクではテーブルだけが対象</li>
+<li><strong>同種データ移行（Homogeneous data migrations）</strong>: セルフマネージドのオンプレ DB を <strong>RDS / Aurora の同等エンジン</strong>へ。<strong>サーバーレス</strong>（リソースを自動でスケール）。<strong>ネイティブツールでダンプして復元</strong>し、テーブルパーティション、データ型、関数・ストアドプロシージャなどの二次オブジェクトも移行できる</li>
+<li>通常のタスクは<strong>レプリケーションインスタンス</strong>（従来型）が処理を実行し、エンドポイントとタスクを作って実行する</li>
+</ul>
+<h2 id="s3">スキーマ変換（SCT / DMS Schema Conversion）</h2>
+<ul>
+<li>異種移行ではスキーマ（テーブル、ビュー、ストアドプロシージャなど）を先に変換する。<strong>DMS 自体はスキーマ変換をしない</strong>（データ移行のみ）</li>
+<li>原文のチュートリアルでは <strong>DMS Schema Conversion を先に案内</strong>し、<strong>従来の AWS SCT は &quot;legacy&quot; と表現</strong>されている</li>
+<li><strong>SCT</strong>: 既存の DB スキーマを別エンジンへ変換。OLTP スキーマもデータウェアハウススキーマも可。変換後のスキーマは <strong>RDS の各エンジン、Aurora、Redshift</strong>、EC2 上の DB、S3 のデータで使える</li>
+<li>SCT の変換例: SQL Server → Aurora MySQL / PostgreSQL / MariaDB / MySQL / PostgreSQL など、Db2 LUW → Aurora / MariaDB / MySQL / PostgreSQL など</li>
+<li><strong>MySQL → Aurora MySQL は SCT なしで</strong>移行できると原文に明記（同種のため）</li>
+</ul>
+<h2 id="s4">AWS DataSync</h2>
+<ul>
+<li><strong>ファイル・オブジェクトデータを AWS ストレージサービスとの間、およびサービス間で転送</strong>するマネージドサービス</li>
+<li><strong>オンプレ側</strong>: NFS、SMB、HDFS、オブジェクトストレージ。<strong>AWS 側</strong>: S3、EFS、FSx（Windows File Server、Lustre、OpenZFS、NetApp ONTAP）。<strong>他クラウド</strong>: Google Cloud Storage、Azure Blob / Files、Wasabi、Cloudflare R2 など</li>
+<li><strong>エージェント</strong>は VM アプライアンス。VMware ESXi、Linux KVM、Nutanix AHV、Hyper-V に配置。<strong>AWS 内のストレージ（VPC 内）なら EC2 インスタンスとして配置</strong></li>
+<li><strong>同一アカウントの AWS ストレージサービス間（リージョンをまたぐ場合を含む）ではエージェント不要</strong>。データは AWS ネットワーク内を通り、パブリックインターネットを通らない。<strong>リージョン間の転送は元リージョンからのデータ転送 OUT として課金</strong></li>
+<li><strong>他クラウドとの転送はエージェントあり・なしのどちらでも可能</strong></li>
+<li><strong>暗号化</strong>（オンプレ → AWS は TLS）と<strong>データ整合性の検証</strong>が組み込み。<strong>VPC エンドポイント</strong>でインターネットを経由しない転送も可能</li>
+<li><strong>ユースケース</strong>: データ移行、<strong>コールドデータのアーカイブ</strong>（S3 Glacier Flexible Retrieval / Deep Archive へ直接）、レプリケーション（ほとんどの S3 ストレージクラス、EFS / FSx のスタンバイ）、インクラウド処理のための転送</li>
+<li><strong>専用プロトコルと並列マルチスレッド</strong>で高速化</li>
+</ul>
+<h2 id="s5">AWS Snowball Edge</h2>
+<ul>
+<li><strong>原文の冒頭に「新規顧客には提供されていない」と明記</strong>。代替として、オンライン転送は <strong>DataSync</strong>、安全な物理転送は <strong>AWS Data Transfer Terminal</strong>、または AWS パートナー製品、エッジコンピューティングは <strong>AWS Outposts</strong> が挙げられている（<strong>試験は古い出題範囲の可能性があるため、従来の Snow の知識も残しておく</strong>）</li>
+<li>内蔵ストレージとコンピュートを持つデバイス。<strong>データを物理的に輸送</strong>する（地域の運送会社経由、E Ink の配送ラベル）。インターネットより速く運べる</li>
+<li>構成は <strong>Storage Optimized 210 TB</strong> と <strong>Compute Optimized</strong></li>
+<li><strong>最大 100 Gbit/秒のネットワークアダプタ</strong>、<strong>暗号化は強制</strong>（保存時と輸送中）</li>
+<li><strong>S3 との間でインポート / エクスポート</strong>が可能</li>
+<li><strong>クラスター化</strong>: <strong>3〜16 台</strong>でローカルのストレージ・コンピュートの耐久性を確保</li>
+<li>EC2 互換エンドポイント（sbe1 / sbe-c / sbe-g インスタンスタイプ）、S3 互換エンドポイント、EKS Anywhere、Lambda（IoT Greengrass 経由）が使える</li>
+<li>データ転送プロトコル: <strong>NFSv3 / v4 / v4.1、S3 API（HTTP / HTTPS）</strong></li>
+</ul>
+<h2 id="s6">AWS Application Migration Service（MGN）</h2>
+<ul>
+<li><strong>原文の名称は「AWS Transform MGN」</strong>（旧 Application Migration Service）。試験では従来名の MGN で出ることが多い</li>
+<li><strong>物理・仮想・クラウドのサーバーを AWS へ Rehost</strong>。<strong>継続的なブロックレベルレプリケーション</strong>でソースサーバーを変換して起動し、<strong>切り替え（cutover）は通常数分</strong></li>
+<li><strong>多様な OS</strong>（Windows Server、各種 Linux）に対応。<strong>標準の AZ と Local Zones</strong>に追加設定なしでレプリケート可能</li>
+<li><strong>3 種類のテンプレート</strong>: レプリケーション、起動（launch）、起動後（post-launch）。新規追加サーバーに適用され、サーバーごとに上書き可能</li>
+<li><strong>大規模管理</strong>: サーバー → アプリケーション → **ウェーブ（wave）**にグループ化し、起動・cutover・アーカイブをサーバー / アプリ / ウェーブ単位で実行</li>
+<li>移行後に replatform / refactor する<strong>第一歩として Rehost を使う</strong></li>
+</ul>
+<h2 id="s7">判断ポイント</h2>
+<ul>
+<li>「オンプレサーバーを最小のダウンタイムで EC2 に移す（アプリ変更なし）」→ <strong>MGN</strong></li>
+<li>「オンプレ DB を移行しつつ、切り替え直前まで変更を反映」→ <strong>DMS（フルロード + CDC）</strong></li>
+<li>「Oracle から Aurora PostgreSQL へ（異種）」→ <strong>スキーマ変換 + DMS</strong>。DMS 単体ではスキーマ変換ができない</li>
+<li>「PostgreSQL から RDS / Aurora PostgreSQL へ（同種）」→ <strong>DMS の同種データ移行</strong>。またはネイティブのバックアップ / 復元</li>
+<li>「オンプレのデータセンター間で DB を移行」→ <strong>DMS は使えない</strong>（片方は AWS 必須）</li>
+<li>「NFS / SMB のファイルを S3 / EFS / FSx へ、継続的な同期も」→ <strong>DataSync</strong>。同一アカウントの AWS サービス間ならエージェント不要</li>
+<li>「大容量データを回線経由では現実的でない」→ <strong>Snowball Edge</strong>（ただし新規顧客不可）。オンライン転送なら DataSync</li>
+<li>「VPC・アカウント・リージョン間で RDS を移す」→ <strong>Relocate</strong></li>
+<li>「大規模移行で最初に何をするか」→ Rehost / Relocate / Replatform / Retire を優先し、<strong>移行後にモダナイズ</strong></li>
+</ul>
+<h2 id="s8">未確認</h2>
+<ul>
+<li><strong>DMS</strong>: レプリケーションインスタンスの Multi-AZ、<strong>DMS Serverless</strong>（従来型との違い）、検証（データ検証機能）、LOB の扱い、ソース / ターゲット DB ごとの CDC 要件、<strong>フルロードの並列・大規模テーブルの分割</strong>、<strong>DMS Fleet Advisor</strong>、<strong>Kinesis / Kafka / S3 / Redshift へのターゲット出力</strong></li>
+<li><strong>SCT / DMS Schema Conversion</strong>: DMS Schema Conversion の対応エンジンと SCT との機能差、変換できない項目の評価レポート、<strong>SCT のデータ抽出エージェント（Snowball 経由の DWH 移行）</strong></li>
+<li><strong>DataSync</strong>: <strong>Basic モードと Enhanced モードの違い</strong>、帯域制御、スケジュール、フィルタ、<strong>タスク実行の検証</strong>、S3 ストレージクラスの指定、<strong>ライセンス / 料金</strong></li>
+<li><strong>Snow ファミリー</strong>: Snowcone / Snowmobile の現状、Snowball Edge の容量・台数の細かい仕様、<strong>Data Transfer Terminal</strong> の詳細、<strong>Snowball の料金と転送時間の目安（回線速度から Snow が有利になる分岐）</strong></li>
+<li><strong>MGN</strong>: <strong>エージェントのインストール要件、レプリケーションサーバーの構成、ステージング領域のコスト、cutover の詳細、ネットワーク要件（TCP 1500 など）</strong>、<strong>VMware 環境向けのエージェントレスレプリケーション</strong></li>
+<li><strong>その他の移行サービス</strong>: <strong>AWS Transfer Family</strong>、<strong>Migration Hub / Application Discovery Service / Migration Evaluator</strong>、<strong>AWS Transform（メインフレーム / .NET / VMware）</strong>、<strong>Mainframe Modernization</strong>、<strong>App2Container</strong>、<strong>VMware Cloud on AWS / Amazon EVS</strong>、<strong>Server Migration Service（終了済み）</strong>、<strong>CloudEndure</strong>、<strong>VM Import/Export</strong>、<strong>DMS を使わない DB 移行（ネイティブのバックアップ、Aurora リードレプリカ）</strong>、<strong>ポートフォリオ評価・移行計画（MAP、Migration Acceleration Program）</strong></li>
+</ul>
+<h2 id="s9">疑問・確認したい点</h2>
+</main></body></html>

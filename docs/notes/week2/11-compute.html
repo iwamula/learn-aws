@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week2-11: コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">ECS</a><a class="h3" href="#s2">マルチ AZ（ECS）</a><a class="h3" href="#s3">スケーリング（ECS サービス）</a><a class="h2" href="#s4">EKS</a><a class="h2" href="#s5">Lambda</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">未確認</a><a class="h2" href="#s8">疑問・確認したい点</a></nav><main><h1>Week2-11: コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）</h1>
+<p>出典（2026-09-26 に原文を curl で確認）: ECS Developer Guide「Amazon ECS launch types and capacity providers」「Architect for AWS Fargate for Amazon ECS」「Automatically scale your Amazon ECS service」「Use strategies to define Amazon ECS task placement」「Best practices for Amazon ECS service parameters」、EKS User Guide「Manage compute resources by using nodes」「Simplify compute management with AWS Fargate」「Scale cluster compute with Karpenter and Cluster Autoscaler」、Lambda Developer Guide「Understanding and visualizing concurrency」「Configuring reserved concurrency」「Improving startup performance with Lambda SnapStart」「Resilience in AWS Lambda」。EC2 の Auto Scaling は SAA の範囲として省略</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>サーバーレスでコンテナを動かす（ノード管理なし）、ECS API でよい</td>
+<td>ECS + Fargate</td>
+</tr>
+<tr>
+<td>Kubernetes 互換性・既存の K8s 資産・OSS エコシステム</td>
+<td>EKS</td>
+</tr>
+<tr>
+<td>短時間のイベント駆動、リクエスト単位課金、サーバー管理なし</td>
+<td>Lambda</td>
+</tr>
+<tr>
+<td>GPU や特殊な EC2 構成、ノードへの SSH、デーモン、特権コンテナが必要なコンテナ</td>
+<td>ECS on EC2 / EKS（EC2 ノード）。Fargate は不可（下記）</td>
+</tr>
+<tr>
+<td>中断に耐えるバッチ・テスト用の安価なコンテナ</td>
+<td>ECS の FARGATE_SPOT（2 分前警告で中断）や EC2 スポット</td>
+</tr>
+<tr>
+<td>K8s を使いたいがノード運用（OS パッチ・AMI 更新）を減らしたい</td>
+<td>EKS Auto Mode または EKS + Fargate</td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">ECS</h2>
+<ul>
+<li><strong>起動タイプ</strong>は EC2 / Fargate / External / ECS Managed Instances。<strong>現在は「キャパシティプロバイダーで構成する」ことが推奨</strong>され、起動タイプはタスク定義の <code>requiresCompatibilities</code>（互換性の宣言）にだけ使うことを推奨</li>
+<li>キャパシティプロバイダーの種類: <strong>Fargate / FARGATE_SPOT</strong>（各クラスターに ECS が用意。作成不要）、<strong>Auto Scaling グループ</strong>（自己管理 EC2）、<strong>ECS Managed Instances</strong>（Fargate の手軽さと EC2 の柔軟性を両立するフルマネージド）。1 クラスターに混在できるが、<strong>1 つのキャパシティプロバイダー戦略内では種類を混ぜられない</strong></li>
+<li>起動タイプ間の移行（EC2 ⇔ Fargate 起動タイプ）は<strong>サービス更新でできない</strong>。<strong>キャパシティプロバイダー戦略に変更</strong>すれば、EC2 ASG ⇔ Fargate ⇔ Managed Instances の更新が可能</li>
+<li><strong>Fargate</strong>: 各タスクが独自の分離境界（カーネル、CPU、メモリ、ENI を他タスクと共有しない）。サーバーやクラスターのサイズ・パッキングの管理が不要。<strong>FARGATE_SPOT は余剰容量で割引、AWS が容量を必要とすると 2 分前警告で中断</strong></li>
+</ul>
+<h3 id="s2">マルチ AZ（ECS）</h3>
+<ul>
+<li><strong>サービスのタスク配置の既定は <code>spread</code>（<code>attribute:ecs.availability-zone</code>）</strong>。スケールイン時も AZ 間のバランスを保つように終了するタスクを選ぶ。EC2 起動タイプの配置戦略は <code>binpack</code>（cpu/memory の空きを最小に。使用インスタンス数を最小化）/ <code>random</code> / <code>spread</code> があり、配列で組み合わせられる（例: AZ で spread → メモリで binpack）</li>
+<li><strong>配置戦略はベストエフォート</strong>（最適な配置が無理でも配置を試みる）。<strong>配置制約は拘束力があり、配置を妨げうる</strong></li>
+<li>ローリング更新: <code>minimumHealthyPercent</code>（既定 100%）と <code>maximumPercent</code>（既定 200%）で、更新中の稼働タスク数の下限・上限を決める。追加のクラスター容量なしで更新したいなら minimumHealthyPercent を下げる</li>
+</ul>
+<h3 id="s3">スケーリング（ECS サービス）</h3>
+<ul>
+<li><strong>Application Auto Scaling</strong> を使う。<strong>ターゲット追跡</strong>、<strong>ステップ</strong>（CloudWatch アラーム）、<strong>スケジュール</strong>、<strong>予測スケーリング</strong>、<strong>SQS キューのバックログに基づくスケーリング</strong>（タスクあたりのバックログというカスタムメトリクス。非同期ワーカー向け）</li>
+<li>ECS は CPU・メモリ使用率のメトリクスを <strong>1 分間隔</strong>で CloudWatch に送る</li>
+<li><strong>スケールインは保守的</strong>（クールダウン中はブロック）、スケールアウトは連続的。スケールアウトの要求はスケールインのクールダウンを止める</li>
+<li><strong>最小キャパシティを 0 にするとタスク数を 0 にできる</strong></li>
+<li>EC2 起動タイプでは、<strong>サービスのタスク数（Service Auto Scaling）と、クラスターの EC2 台数（キャパシティプロバイダーの ASG スケーリング）の 2 階層</strong>をそろえて考える</li>
+</ul>
+<h2 id="s4">EKS</h2>
+<ul>
+<li>ポッドの実行先: <strong>EKS Auto Mode 管理ノード / マネージドノードグループ / セルフマネージドノード / Fargate / EKS Hybrid Nodes</strong>。ハイブリッドノード以外は<strong>クラスターと同じ VPC</strong> に置く（同じサブネットである必要はない）</li>
+<li><strong>マネージドノードグループ</strong>: EC2 を自分でデプロイ・管理し、OS のパッチ・AMI 更新は利用者の責任（EKS 最適化 AMI の更新はコンソールから 1 クリック）。<strong>カスタム AMI、SSH、ブートストラップ引数、Local Zone、Windows、GPU</strong> に対応（Auto Mode の対応はより限定的）</li>
+<li><strong>EKS Auto Mode</strong>: <strong>EC2 を自分で管理しない</strong>、OS の管理も不要、ノードを自動で追加・統合・削除（<strong>Karpenter ベース</strong>）。<strong>SSH 不可、カスタム AMI 不可</strong>（NodeClass で構成）、Windows 不可、Local Zone 不可</li>
+<li><strong>EKS on Fargate</strong>: Fargate プロファイルで指定した Pod だけが Fargate で動く。<strong>Pod ごとに独立したコンピュート境界（VM 分離）</strong>。制約:<ul>
+<li><strong>DaemonSet 不可</strong>（サイドカーに変更）、<strong>特権コンテナ不可</strong>、<strong>HostPort / HostNetwork 不可</strong>、<strong>GPU 不可</strong></li>
+<li><strong>プライベートサブネットのみ</strong>（NAT ゲートウェイ経由で AWS サービスにアクセス）</li>
+<li>ALB / NLB は <strong>IP ターゲットのみ</strong></li>
+<li><strong>IMDS が使えない</strong>（IAM 認証は IRSA を使う）</li>
+<li>Outposts / Wavelength / Local Zone には置けない</li>
+<li>Pod のプロファイルに合致しないと Pending のまま</li>
+</ul>
+</li>
+<li><strong>ノードのスケーリング</strong>: <strong>Karpenter</strong>（Pod の要件に合う EC2 を 1 分未満で起動、OSS で<strong>利用者がインストール・運用、AWS の SLA なし</strong>）と <strong>Cluster Autoscaler</strong>（<strong>Auto Scaling グループ</strong>を使う）。<strong>Pod のスケーリング</strong>は HPA / VPA（Fargate の Pod のサイズ調整に VPA を使うなら、モードを Auto または Recreate に）</li>
+</ul>
+<h2 id="s5">Lambda</h2>
+<ul>
+<li><strong>同時実行数（concurrency）= 処理中のリクエスト数</strong> = 平均リクエスト毎秒 × 平均実行時間（秒）。例: 5,000 rps × 0.2 秒 = 1,000。リクエスト毎に別の実行環境が必要</li>
+<li><strong>アカウントの既定の同時実行数上限は、リージョンあたり全関数合計 1,000</strong>（引き上げ申請可）。超えるとスロットリング</li>
+<li><strong>予約済み同時実行数（reserved）</strong>: 関数の<strong>上限であり下限でもある</strong>。他の関数はその分を使えない。<strong>追加料金なし</strong>。用途は、<strong>重要な関数の枠の確保</strong>と、<strong>下流（DB 接続など）を守るための上限</strong>。<strong>0 にすると意図的に停止</strong>。予約できるのは、未予約の同時実行数から <strong>100 を引いた値</strong>まで</li>
+<li><strong>プロビジョニング済み同時実行数（provisioned）</strong>: <strong>事前に初期化した実行環境</strong>を用意して<strong>コールドスタートを削減</strong>（ミリ秒 2 桁の応答を目指す）。<strong>追加料金あり</strong>。<strong>対話型（Web/モバイル）に有効</strong>、非同期のデータ処理には通常不要</li>
+<li><strong>SnapStart</strong>: 関数バージョンの発行時に初期化し、Firecracker microVM の<strong>メモリ・ディスクのスナップショット</strong>を暗号化してキャッシュ。実行環境をそこから再開して起動を短縮（最短でサブ秒）。<strong>コード変更は通常不要</strong>。<strong>一意性に依存する状態（乱数・接続など）はスナップショット対応が必要</strong>。<strong>厳格なコールドスタート要件はプロビジョニング済み同時実行数を使う</strong>（SnapStart の公式の使い分け）</li>
+<li>スケーリングの速さ: <strong>関数ごと・リージョンごとに、10 秒あたり最大 1,000 の実行環境を追加</strong>（または 10 秒あたり 10,000 rps）</li>
+<li><strong>マルチ AZ</strong>: Lambda はリージョン内の複数 AZ で動くため、利用者の AZ 設計は不要（原文の Resilience ページは AWS インフラの一般説明）。VPC 接続する関数は複数 AZ のサブネットを指定する（この記述の原文は今回未取得）</li>
+</ul>
+<h2 id="s6">判断ポイント</h2>
+<ul>
+<li>「サーバー管理なし、コンテナ、ECS」→ Fargate。「特権コンテナ / DaemonSet / GPU / SSH」→ EC2 ノード</li>
+<li>「EKS でノード管理を最小化」→ EKS Auto Mode（または Fargate）。「Fargate では DaemonSet 不可・プライベートサブネットのみ」</li>
+<li>「EKS のノードを Pod の要求に合わせて素早く」→ Karpenter（SLA なし、利用者運用）。「ASG ベース」→ Cluster Autoscaler</li>
+<li>「ECS のワーカーを SQS のバックログでスケール」→ Application Auto Scaling + タスクあたりバックログ</li>
+<li>「ECS のタスクを AZ に均等に配置」→ 既定の spread（<code>ecs.availability-zone</code>）</li>
+<li>「Lambda のコールドスタートを消したい」→ Provisioned Concurrency（コスト増）。「コード変更少なめで起動を短縮」→ SnapStart</li>
+<li>「重要な Lambda の枠を確保 / 下流の RDS を守る」→ 予約済み同時実行数（無料）</li>
+<li>「別の関数がスロットリングされる」→ アカウント上限 1,000 の共有枠や、他関数の予約で残りが減っていないかを確認</li>
+</ul>
+<h2 id="s7">未確認</h2>
+<ul>
+<li>Lambda のスケーリング速度: 原文に「10 秒あたり 500 の同時実行数のバースト」（プロビジョニング済みのスピルオーバーの説明）と「10 秒あたり 1,000 の実行環境」（スケーリングレートの説明）の 2 つの記述があり、<strong>整合を確認できていない</strong></li>
+<li>SnapStart の対応ランタイム・制約（プロビジョニング済み同時実行数との併用可否など）</li>
+<li>Lambda の VPC 設定と AZ、Lambda の AZ 障害時の挙動</li>
+<li>ECS Managed Instances と EKS Auto Mode の料金・詳細</li>
+<li>ECS のデプロイ方式（ローリング / Blue-Green / CodeDeploy）の詳細</li>
+<li>EKS のコントロールプレーンのマルチ AZ 構成、EKS Anywhere / ECS Anywhere</li>
+<li>App Runner、Elastic Beanstalk、Batch との使い分け</li>
+</ul>
+<h2 id="s8">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week2-9: データ層のリージョン間構成</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">比較表</a><a class="h2" href="#s1">Aurora Global Database</a><a class="h2" href="#s2">DynamoDB グローバルテーブル</a><a class="h2" href="#s3">S3 レプリケーション</a><a class="h2" href="#s4">RDS クロスリージョンリードレプリカ（Aurora 以外）</a><a class="h2" href="#s5">ElastiCache Global Datastore（Valkey / Redis OSS）</a><a class="h2" href="#s6">判断ポイント</a><a class="h2" href="#s7">未確認</a><a class="h2" href="#s8">疑問・確認したい点</a></nav><main><h1>Week2-9: データ層のリージョン間構成</h1>
+<p>出典（2026-09-25 に原文を curl で確認）: Aurora User Guide「Using Amazon Aurora Global Database」、DynamoDB Developer Guide「Global tables」「How DynamoDB global tables work」、S3 User Guide「Replicating objects」「What does Amazon S3 replicate?」「Requirements and considerations for replication」、RDS User Guide「Cross-Region read replicas」、ElastiCache User Guide「Replication across AWS Regions using global datastores」。DR の位置づけは 08 ノート</p>
+<h2 id="s0">比較表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>サービス</th>
+<th>仕組み</th>
+<th>書き込み</th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Aurora Global Database</td>
+<td>ストレージ層の専用インフラで非同期レプリケーション。遅延は通常 1 秒未満</td>
+<td>プライマリリージョンのみ。セカンダリからの書き込みは write forwarding で転送</td>
+<td>プライマリ 1 + セカンダリ最大 10 リージョン。障害時のセカンダリ昇格は 1 分未満（08 ノートの DR ホワイトペーパーより）</td>
+</tr>
+<tr>
+<td>DynamoDB グローバルテーブル</td>
+<td>全レプリカがマルチアクティブ</td>
+<td>どのレプリカでも読み書き可</td>
+<td>MREC（既定・非同期・last writer wins）と MRSC（同期・強い整合性）。SLA 99.999%</td>
+</tr>
+<tr>
+<td>S3 レプリケーション（CRR/SRR）</td>
+<td>バケット間の非同期コピー</td>
+<td>ソースバケット</td>
+<td>バージョニング必須。S3 RTC で 99.99% を 15 分以内（SLA つき）</td>
+</tr>
+<tr>
+<td>RDS クロスリージョンリードレプリカ</td>
+<td>エンジンのレプリケーションによる非同期</td>
+<td>ソースのみ</td>
+<td>昇格は手動。昇格後は独立した DB になる</td>
+</tr>
+<tr>
+<td>ElastiCache Global Datastore</td>
+<td>Valkey / Redis OSS のリージョン間非同期レプリケーション</td>
+<td>プライマリクラスターのみ</td>
+<td>セカンダリは読み取り専用。<strong>リージョン間の自動フェイルオーバーは非対応（手動で昇格）</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">Aurora Global Database</h2>
+<ul>
+<li>プライマリ 1 リージョンに書き込み、最大 10 の読み取り専用セカンダリリージョン。レプリケーションはデータベースエンジンではなくクラスターストレージ層が担うので、プライマリへの性能影響が小さい</li>
+<li><strong>Global Database のライターエンドポイント</strong>は、スイッチオーバーやフェイルオーバー後も常にプライマリを指す</li>
+<li>切り替えは2種類（試験で区別される）:<ul>
+<li><strong>スイッチオーバー</strong>（旧「managed planned failover」）: 計画作業（リージョンのローテーションなど）用。健全な状態で、<strong>データ損失なし</strong>でプライマリを移す</li>
+<li><strong>フェイルオーバー</strong>: プライマリリージョンの障害からの復旧用（クロスリージョンフェイルオーバー）</li>
+</ul>
+</li>
+<li><strong>write forwarding</strong>: セカンダリクラスターで受けた書き込みをプライマリに転送する。アプリは最寄りのセカンダリに接続したまま書き込める（書き込み自体はプライマリで実行）</li>
+<li>セカンダリは読み取り専用なので、最大 16 個のリーダーインスタンス（通常のクラスターは 15）を持てる</li>
+<li>制約: Backtrack 非対応、セカンダリの Aurora Auto Scaling 非対応、Secrets Manager 統合は Global Database 非対応、マネージドのスイッチオーバー/フェイルオーバーはプライマリとセカンダリで<strong>エンジンのメジャー/マイナーバージョンが同じ</strong>であることが必要</li>
+<li>08 ノートの DR ホワイトペーパーは「最大5つのセカンダリリージョン」と書いているが、Aurora User Guide の現行の記述は<strong>最大 10</strong>。<strong>Aurora User Guide を優先</strong>（ホワイトペーパーの記述が古い可能性）</li>
+</ul>
+<h2 id="s2">DynamoDB グローバルテーブル</h2>
+<ul>
+<li>全レプリカで同じテーブル名・主キー。どのレプリカでも読み書きでき、他のレプリカへ自動でレプリケートされる。既存の DynamoDB API をそのまま使う（アプリ変更不要）</li>
+<li><strong>MREC（既定）</strong>: 非同期。通常 1 秒程度以内にレプリケート。同一アイテムの同時更新は<strong>内部タイムスタンプが最新のものが勝つ（last writer wins）</strong>。強い整合性のある読み取りは、書き込みを受けたリージョンでのみ最新を保証する</li>
+<li><strong>MRSC</strong>: 同期レプリケーション。<strong>どのレプリカでも強い整合性のある読み取りが最新を返す</strong>。<strong>RPO ゼロ</strong>が必要な場合の選択肢<ul>
+<li><strong>ちょうど 3 リージョン</strong>が必要（3 レプリカ、または 2 レプリカ + witness 1 つ。witness は読み書き不可）</li>
+<li>対応リージョンは限られる。作成時に<strong>空のテーブル</strong>である必要がある。同一アカウント構成のみ</li>
+<li><strong>整合性モードは作成後に変更できず</strong>、1 つのグローバルテーブルで混在もできない</li>
+</ul>
+</li>
+<li>MREC のレプリカ数はリージョン数まで。既存テーブルにレプリカを追加して作る</li>
+<li>アカウント構成: 同一アカウント（1 つの IAM/KMS 境界）と<strong>マルチアカウント</strong>（レプリカを別アカウントに置き、アカウントごとに IAM/KMS/課金/CloudTrail を分離）。マルチアカウントは MRSC 非対応</li>
+<li>「マルチリージョンで、ローカル書き込み、低遅延、競合は許容」→ グローバルテーブル（MREC）</li>
+</ul>
+<h2 id="s3">S3 レプリケーション</h2>
+<ul>
+<li><strong>CRR</strong>（リージョン間）と <strong>SRR</strong>（同一リージョン）。SRR の用途: ログ集約、本番/テストのコピー、データ主権など</li>
+<li>要件: ソース・宛先の<strong>両バケットでバージョニング有効</strong>、S3 が引き受ける IAM ロール、必要なリージョンが有効化されていること</li>
+<li><strong>レプリケーションは設定後の新しいオブジェクトが対象</strong>。既存オブジェクトは <strong>S3 Batch Replication</strong> でオンデマンドにコピーする（S3 RTC は Batch Replication には適用されない）</li>
+<li><strong>S3 RTC（Replication Time Control）</strong>: 新規オブジェクトの 99.99% を 15 分以内にレプリケート（SLA つき）。監視用メトリクスも出る</li>
+<li><strong>双方向（two-way）レプリケーション</strong>: 2 つのバケットを相互にレプリケーションする。**レプリカ変更の同期（replica modification sync）**を有効にして、レプリカ側のメタデータ変更も同期する。<strong>Multi-Region Access Point</strong> と組み合わせて使える</li>
+<li><strong>レプリケーションされないもの・注意</strong>:<ul>
+<li><strong>削除マーカーは既定ではレプリケートされない</strong>（非タグベースのルールで有効にできる。<strong>ライフサイクルによる削除のマーカーは複製されない</strong>）。08 ノートの「DR 側を悪意ある削除から守る」根拠</li>
+<li><strong>すでにレプリケートされたオブジェクトは再レプリケートされない</strong>（A→B→C の連鎖はしない）。連鎖させたいときは Batch Replication</li>
+<li>Glacier Flexible Retrieval / Deep Archive、Intelligent-Tiering のアーカイブアクセス層のオブジェクトは対象外</li>
+<li><strong>ライフサイクルの動作</strong>（有効期限切れなど）は複製されない。両バケットに同じライフサイクル設定を入れる</li>
+<li>暗号化オブジェクトは SSE-S3 / SSE-KMS / DSSE-KMS / SSE-C とも対応（KMS の扱いは 10 ノートで整理する）</li>
+</ul>
+</li>
+<li>クロスアカウントレプリケーションもできる。既定では、別アカウントへのレプリケーションでは削除マーカーが複製されない</li>
+</ul>
+<h2 id="s4">RDS クロスリージョンリードレプリカ（Aurora 以外）</h2>
+<ul>
+<li>非同期レプリケーション。障害時は<strong>手動で昇格</strong>させる。昇格すると独立した DB になり、レプリケーションは切れる。昇格には数分かかり、再起動を伴う（08 ノート）</li>
+<li><strong>暗号化されたレプリカを別リージョンに作るには、ソースが暗号化されている必要があり、宛先リージョンの KMS キーを指定する</strong></li>
+<li>用途: DR、読み取りの分散、リージョン間の DB 移行</li>
+<li>クロスリージョンレプリケーションにはデータ転送料金がかかる</li>
+<li>Aurora との違い: RDS リードレプリカはリージョン障害時の昇格が数分で遅延も大きくなりうる。Aurora Global Database の方が RTO/RPO が小さい（08 ノート）</li>
+</ul>
+<h2 id="s5">ElastiCache Global Datastore（Valkey / Redis OSS）</h2>
+<ul>
+<li>プライマリ（読み書き）+ セカンダリ（読み取り専用、別リージョン）。非同期レプリケーション。<strong>ノードベースのクラスターのみ</strong>（サーバーレス非対応）</li>
+<li>用途: 低レイテンシーの地理的に近い読み取り、DR（セカンダリを手動でプライマリに昇格）</li>
+<li><strong>リージョン間の自動フェイルオーバーには対応しない</strong>。設計時は、アプリ側またはランブックで昇格手順を自動化する</li>
+</ul>
+<h2 id="s6">判断ポイント</h2>
+<ul>
+<li>「RDB のリージョン間 DR で、昇格 1 分未満・遅延 1 秒未満」→ Aurora Global Database</li>
+<li>「計画的なリージョン移行で、データ損失なし」→ Aurora のスイッチオーバー</li>
+<li>「リージョン障害からの復旧」→ Aurora のフェイルオーバー</li>
+<li>「セカンダリリージョンのアプリから書き込みたい（書き込みはプライマリで実行）」→ Aurora write forwarding</li>
+<li>「マルチリージョンで、全リージョンで書き込み、競合は last writer wins で許容」→ DynamoDB グローバルテーブル（MREC）</li>
+<li>「マルチリージョンで <strong>RPO ゼロ</strong>、強い整合性のある読み取り」→ DynamoDB グローバルテーブル MRSC（3 リージョン）</li>
+<li>「別アカウントごとにガバナンスを分離したグローバルテーブル」→ マルチアカウントグローバルテーブル</li>
+<li>「S3 を 15 分以内でリージョン間コピー（SLA 必要）」→ CRR + S3 RTC</li>
+<li>「すでにあるオブジェクトもコピーしたい」→ S3 Batch Replication</li>
+<li>「2 リージョンの S3 に相互で書き込む」→ 双方向レプリケーション + replica modification sync（+ Multi-Region Access Point）</li>
+<li>「Redis のリージョン間レプリケーション」→ ElastiCache Global Datastore（自動フェイルオーバーなし）</li>
+<li>「暗号化した RDS のクロスリージョンレプリカ」→ ソースが暗号化済み + 宛先リージョンの KMS キーを指定</li>
+</ul>
+<h2 id="s7">未確認</h2>
+<ul>
+<li>Aurora write forwarding の整合性レベル（セッション/結果整合など）と制約</li>
+<li>Aurora PostgreSQL の RPO 管理機能（<code>rds.global_db_rpo</code>）の詳細</li>
+<li>Aurora Global Database の「リージョン障害時に昇格 1 分未満」の数値は DR ホワイトペーパー由来で、Aurora User Guide の該当ページでは今回未確認</li>
+<li>S3 のクロスアカウントレプリケーションの所有者上書き設定</li>
+<li>DynamoDB MRSC の対応リージョン一覧（原文は限定リージョンとだけ確認）</li>
+</ul>
+<h2 id="s8">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

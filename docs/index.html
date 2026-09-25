@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAP-C02 ノート</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="index.html"><b>← 一覧</b></a></nav><main><h1>SAP-C02 ノート</h1><h2>week1</h2><ul><li><a href="notes/week1/01-organizations-scp.html">Week1-1: AWS Organizations と SCP</a></li><li><a href="notes/week1/02-vpc-connectivity.html">Week1-2: VPC 間・VPC 外の接続（Peering / TGW / PrivateLink / Endpoint）</a></li><li><a href="notes/week1/03-hybrid-dns-route53.html">Week1-3: ハイブリッド DNS と Route 53</a></li><li><a href="notes/week1/04-iam-policy-evaluation.html">Week1-4: IAM ポリシー評価とクロスアカウント権限</a></li><li><a href="notes/week1/05-control-tower-identity-center.html">Week1-5: Control Tower と IAM Identity Center</a></li><li><a href="notes/week1/06-direct-connect-resiliency.html">Week1-6: Direct Connect の冗長構成</a></li><li><a href="notes/week1/07-org-wide-security-services.html">Week1-7: セキュリティサービスの組織横断集約</a></li></ul><h2>week2</h2><ul><li><a href="notes/week2/08-dr-strategies.html">Week2-8: Multi-AZ / Multi-Region と DR 4パターン</a></li><li><a href="notes/week2/09-cross-region-data.html">Week2-9: データ層のリージョン間構成</a></li><li><a href="notes/week2/10-kms.html">Week2-10: KMS（マルチリージョンキー、クロスアカウント、リージョン間コピーの暗号化）</a></li><li><a href="notes/week2/11-compute.html">Week2-11: コンピュート（ECS/EKS/Fargate/Lambda の選定と、マルチAZ・スケーリング）</a></li></ul><h2>week3</h2><ul><li><a href="notes/week3/12-cloudformation-cdk.html">Week3-12: CloudFormation / CDK（StackSets、ドリフト、変更セット、削除・置換の保護）</a></li><li><a href="notes/week3/13-monitoring.html">Week3-13: 監視・監査・コンプライアンス（CloudTrail 組織証跡、Config、CloudWatch 横断監視、X-Ray）</a></li><li><a href="notes/week3/14-cost-optimization.html">Week3-14: コスト最適化（Savings Plans / RI、可視化・予算、Compute Optimizer、S3 ストレージクラス、Spot）</a></li><li><a href="notes/week3/15-migration.html">Week3-15: 移行（7R、DMS / SCT、DataSync、Snow、MGN）</a></li></ul></main></body></html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week1-3: ハイブリッド DNS と Route 53</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">Route 53 の基本</a><a class="h2" href="#s1">ハイブリッド DNS: Route 53 Resolver（現行ドキュメントでは「Route 53 VPC Resolver」に改称）</a><a class="h2" href="#s2">判断ポイント</a><a class="h2" href="#s3">疑問・確認したい点</a></nav><main><h1>Week1-3: ハイブリッド DNS と Route 53</h1>
+<h2 id="s0">Route 53 の基本</h2>
+<ul>
+<li><strong>ルーティングポリシー</strong>: シンプル / 加重 / レイテンシー / フェイルオーバー / 位置情報 / 地理的近接（バイアス指定可）/ IPベース / 複数値応答</li>
+<li><strong>ヘルスチェック</strong>: エンドポイント、他のヘルスチェックの集計、CloudWatch アラーム。<strong>プライベートなリソースは直接チェックできない</strong>ので CloudWatch アラームを使う</li>
+<li><strong>Alias レコード</strong>: ゾーン頂点（example.com）に使える。CloudFront / ELB / S3 静的サイト等を指す。クエリ課金なし。CNAME は頂点に置けない</li>
+</ul>
+<h2 id="s1">ハイブリッド DNS: Route 53 Resolver（現行ドキュメントでは「Route 53 VPC Resolver」に改称）</h2>
+<ul>
+<li><strong>Inbound Endpoint</strong>: オンプレ → AWS（オンプレの DNS が VPC の名前を引く）</li>
+<li><strong>Outbound Endpoint + 転送ルール</strong>: AWS → オンプレ（VPC から <code>corp.example.com</code> をオンプレDNSへ転送）</li>
+<li>ルールは <strong>RAM で組織内に共有</strong>でき、複数アカウントのVPCに関連付けられる</li>
+<li><strong>プライベートホストゾーン (PHZ)</strong>: VPC に関連付けて内部名を解決。<strong>別アカウントのVPC</strong>へ関連付けるには認可（<code>CreateVPCAssociationAuthorization</code>）＋関連付けが必要</li>
+<li>VPC の <code>enableDnsHostnames</code> / <code>enableDnsSupport</code> を有効にしないと PHZ は機能しない</li>
+<li>多数のVPC/アカウントの構成では、DNS 集約 VPC に Resolver を置き、TGW 経由で各VPCが利用する構成がよく出る</li>
+</ul>
+<h2 id="s2">判断ポイント</h2>
+<ul>
+<li>「オンプレの端末が AWS の EC2 のプライベート名を引きたい」→ Resolver Inbound Endpoint</li>
+<li>「AWS からオンプレの AD ドメインを引きたい」→ Outbound Endpoint + 転送ルール</li>
+<li>「全アカウントに同じ転送ルールを配りたい」→ RAM 共有</li>
+<li>「リージョン障害時に別リージョンへ切り替え」→ フェイルオーバー + ヘルスチェック（または Application Recovery Controller）</li>
+<li>「世界中のユーザーに最寄りへ」→ レイテンシールーティング。「国ごとに出し分け・規制対応」→ 位置情報</li>
+</ul>
+<h2 id="s3">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

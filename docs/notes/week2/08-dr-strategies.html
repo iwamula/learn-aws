@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week2-8: Multi-AZ / Multi-Region と DR 4パターン</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">まず「何の災害か」で分ける</a><a class="h2" href="#s1">4パターン（コストと複雑さは上から下に増え、復旧時間は短くなる）</a><a class="h2" href="#s2">各パターンで使うサービス</a><a class="h2" href="#s3">書き込み戦略（Active/Active）</a><a class="h2" href="#s4">フェイルオーバーとトラフィック制御</a><a class="h2" href="#s5">AWS Elastic Disaster Recovery（DRS）</a><a class="h2" href="#s6">その他</a><a class="h2" href="#s7">判断ポイント</a><a class="h2" href="#s8">未確認</a><a class="h2" href="#s9">疑問・確認したい点</a></nav><main><h1>Week2-8: Multi-AZ / Multi-Region と DR 4パターン</h1>
+<p>出典: AWS ホワイトペーパー「Disaster Recovery of Workloads on AWS」の &quot;Disaster recovery options in the cloud&quot;（2026-09-25 に原文を curl で確認）</p>
+<h2 id="s0">まず「何の災害か」で分ける</h2>
+<ul>
+<li>データセンター1つの障害（AZ 障害）: Multi-AZ で設計済みなら、DR は <strong>Backup &amp; Restore で足りる場合がある</strong></li>
+<li>リージョン全体の障害、または規制要件がある: <strong>Pilot Light / Warm Standby / Multi-site Active/Active</strong></li>
+<li>データ破損・誤削除・アカウント侵害: レプリケーションだけでは防げない（破損も複製される）→ <strong>バージョニングや PITR、別アカウントへのバックアップが必要</strong></li>
+</ul>
+<h2 id="s1">4パターン（コストと複雑さは上から下に増え、復旧時間は短くなる）</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>パターン</th>
+<th>DR リージョンの状態</th>
+<th>復旧時に必要な作業</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Backup &amp; Restore</td>
+<td>データのバックアップのみ（インフラは未構築）</td>
+<td>インフラ（IaC）・設定・コードを再デプロイし、バックアップをリストア</td>
+</tr>
+<tr>
+<td>Pilot Light</td>
+<td>データは常時レプリケーション。DB などの中核は稼働、アプリサーバーは「停止（未デプロイ）」</td>
+<td>アプリサーバーを起動（switch on）してスケールアウト。<strong>このままではリクエストを処理できない</strong></td>
+</tr>
+<tr>
+<td>Warm Standby</td>
+<td>縮小版だが<strong>完全に動く</strong>環境が常時稼働</td>
+<td>スケールアップのみ。縮小した状態でも即座にトラフィックを処理できる</td>
+</tr>
+<tr>
+<td>Multi-site Active/Active</td>
+<td>全リージョンが同時にトラフィックを処理</td>
+<td>フェイルオーバーという概念がない（トラフィックを外すだけ）。復旧時間はほぼゼロにできる</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>Pilot Light と Warm Standby の違い: <strong>リクエストを追加作業なしで処理できるか</strong>。Pilot Light は起動・追加デプロイが要る、Warm Standby は拡張だけ</li>
+<li>Hot Standby: Active/Passive で、DR 側が<strong>本番全負荷を処理できる容量</strong>を持つが、トラフィックは受けない。Auto Scaling（コントロールプレーン操作）への依存をなくせる。フル環境を立てるなら Active/Active にする顧客が多く、Active/Active にしないなら Warm Standby の方が経済的で運用も単純</li>
+<li>Active/Active でもデータ破損は別問題: バックアップからの復旧が必要で、<strong>RPO は 0 にならない</strong></li>
+<li>RTO/RPO の具体的な数値（分・時間の目安）は図のみで、原文テキストにはない。<strong>数値は未確認</strong>として、試験では順序（B&amp;R が最長 → Active/Active が最短）で判断する</li>
+</ul>
+<h2 id="s2">各パターンで使うサービス</h2>
+<ul>
+<li><strong>Backup &amp; Restore</strong>: EBS/RDS/Aurora/DynamoDB/EFS/FSx などのスナップショット、<strong>AWS Backup</strong>（リージョン間・アカウント間コピー、集中管理）、AMI のリージョン間コピー、CloudFormation/CDK による再デプロイ<ul>
+<li>AWS Backup のクロスアカウントコピーは、内部脅威やアカウント侵害への対策になる</li>
+<li>AWS Backup は自動・スケジュールでの<strong>リストアはできない</strong>。SDK で API を呼んで実装する（SNS + Lambda など）。リストアはコントロールプレーン操作なので、定期的にリストアしておくと災害時に使えないリスクを減らせる</li>
+<li>EC2 バックアップのメタデータ（インスタンスタイプ、VPC、SG、IAM ロールなど）は<strong>同一リージョンへのリストア時のみ</strong>使われる</li>
+<li>S3: バージョニング + CRR。既定ではソースで削除しても<strong>削除マーカーはソース側にだけ付き、DR 側には複製されない</strong>ので、悪意ある削除から DR 側を守れる</li>
+</ul>
+</li>
+<li><strong>Pilot Light</strong>: 上記に加え、継続的な<strong>非同期</strong>リージョン間レプリケーション: S3 レプリケーション、RDS リードレプリカ、Aurora Global Database、DynamoDB グローバルテーブル、DocumentDB グローバルクラスター、ElastiCache（Redis OSS）Global Datastore（詳細は 09）<ul>
+<li>RDS（Aurora 以外）のリードレプリカ昇格は数分かかり、再起動を伴う。Aurora Global Database はセカンダリの昇格が <strong>1 分未満</strong>、レプリケーション遅延は通常 1 秒未満</li>
+<li>AMI は EC2 Image Builder でパイプライン化して、プライマリと DR の両リージョンにコピーする</li>
+<li>CloudFormation は擬似パラメータと Conditions で、DR リージョンには縮小版だけをデプロイできる。リージョンごとに別アカウントにするのが最も分離が強い（推奨）</li>
+</ul>
+</li>
+<li><strong>Warm Standby</strong>: Auto Scaling で DR リージョンを本番容量までスケールアウト（EC2 の希望容量を上げる）。DR リージョンの<strong>サービスクォータ</strong>を事前に引き上げておく</li>
+<li><strong>Multi-site Active/Active</strong>: 書き込み戦略が論点になる（下記）</li>
+</ul>
+<h2 id="s3">書き込み戦略（Active/Active）</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>戦略</th>
+<th>内容</th>
+<th>向くサービス</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>write global</td>
+<td>書き込みは1リージョンに集約。障害時に別リージョンを昇格。読み取りは近いリージョン（read local）</td>
+<td>Aurora Global Database（書き込み転送にも対応）</td>
+</tr>
+<tr>
+<td>write local</td>
+<td>書き込みも最寄りリージョン。同時更新は <strong>last writer wins</strong></td>
+<td>DynamoDB グローバルテーブル</td>
+</tr>
+<tr>
+<td>write partitioned</td>
+<td>パーティションキー（ユーザー ID など）でリージョンを固定し、書き込みの競合を避ける</td>
+<td>S3 の双方向レプリケーション（現状 2 リージョン間。両バケットで<strong>レプリカ変更の同期</strong>を有効にする）</td>
+</tr>
+</tbody></table></div>
+<h2 id="s4">フェイルオーバーとトラフィック制御</h2>
+<ul>
+<li>自動フェイルオーバーは<strong>誤検知でも切り替わる</strong>ため注意が必要で、手動起動（手順は自動化してボタン1つにする）もよく使われる</li>
+<li><strong>データプレーン操作を使う</strong>: 障害時はコントロールプレーン（設定変更 API）が使えない可能性があるため、フェイルオーバーはデータプレーンだけで完結させる方が堅牢</li>
+<li><strong>Route 53 ヘルスチェック + DNS フェイルオーバー</strong>: 自動、データプレーン操作</li>
+<li><strong>Application Recovery Controller（ARC）</strong>: 「ヘルスチェックの形をしたオン/オフのスイッチ」（ルーティングコントロール）を作り、CLI/SDK（高可用なデータプレーン API）で切り替える手動フェイルオーバー</li>
+<li><strong>加重ルーティングの重みを変更する</strong>方法もあるが、<strong>コントロールプレーン操作</strong>なので ARC より耐障害性が低い</li>
+<li><strong>Global Accelerator</strong>: Anycast の静的 IP で複数リージョンのエンドポイントに振り分け、ヘルスチェックで自動切り替え。手動はトラフィックダイヤル（<strong>コントロールプレーン操作</strong>）。DNS キャッシュの問題を避けられ、AWS エッジ経由で低レイテンシ</li>
+<li><strong>CloudFront オリジンフェイルオーバー</strong>: リクエスト単位で、プライマリが失敗したときだけセカンダリに送る。<strong>以降のリクエストもまずプライマリに行く</strong>（Route 53 のような切り替えではない）</li>
+<li>Active/Active の振り分け: Route 53（割合指定の加重、地理的近接性、レイテンシーなど）、Global Accelerator（トラフィックダイヤルで割合を指定）</li>
+</ul>
+<h2 id="s5">AWS Elastic Disaster Recovery（DRS）</h2>
+<ul>
+<li>サーバー（オンプレミス、他クラウド、EC2）を<strong>ブロックレベルで継続レプリケーション</strong>し、AWS のリージョンを DR 先にする。<strong>Pilot Light</strong> 戦略を実装したもの</li>
+<li>レプリケーション先のステージング用 VPC に、データのコピーと「停止中」のリソースを維持し、フェイルオーバー時にフルキャパシティの環境を自動で作る</li>
+<li>AWS 上の DR にも使えるが、対象は <strong>EC2 上のアプリ・DB のみ（RDS は対象外）</strong></li>
+<li>「オンプレのサーバーを丸ごと、低コストで AWS に DR」→ DRS</li>
+</ul>
+<h2 id="s6">その他</h2>
+<ul>
+<li><strong>AWS Resilience Hub</strong>: ワークロードの耐障害性を継続的に検証し、RTO/RPO 目標を満たせそうか追跡する</li>
+<li>DR は<strong>定期的にテストする</strong>。バックアップのリストアテストも必須</li>
+<li>CloudFormation <strong>StackSets</strong>: 複数アカウント・リージョンへ1回の操作でスタックを展開する（DR 環境の一貫した展開）</li>
+</ul>
+<h2 id="s7">判断ポイント</h2>
+<ul>
+<li>「コスト最小、RTO は数時間でよい」→ Backup &amp; Restore</li>
+<li>「DB は常時同期しておき、障害時にアプリを起動。コストを抑えたい」→ Pilot Light</li>
+<li>「縮小版でも即座に処理を継続したい、RTO は短く」→ Warm Standby</li>
+<li>「RTO/RPO をほぼ 0 にしたい、コストと複雑さは許容」→ Multi-site Active/Active</li>
+<li>「オンプレのサーバーを AWS に DR」→ Elastic Disaster Recovery</li>
+<li>「リージョン障害時、コントロールプレーンに依存せずに切り替えたい」→ Route 53 ヘルスチェック/ARC（データプレーン）。加重の変更やトラフィックダイヤルはコントロールプレーン</li>
+<li>「DNS キャッシュに影響されずに、静的 IP のままフェイルオーバー」→ Global Accelerator</li>
+<li>「S3 の誤削除・悪意ある削除から DR 側を守る」→ バージョニング + CRR（削除マーカーは既定で複製されない）、AWS Backup のクロスアカウントコピー</li>
+<li>「Aurora で 1 分未満の昇格、リージョン障害対応」→ Aurora Global Database（RDS リードレプリカは数分）</li>
+<li>「同時書き込みを許容するマルチリージョン」→ DynamoDB グローバルテーブル（last writer wins）</li>
+</ul>
+<h2 id="s8">未確認</h2>
+<ul>
+<li>各パターンの RTO/RPO の目安（分・時間の数値）</li>
+<li>Route 53 フェイルオーバーレコード（Primary/Secondary、Evaluate Target Health）の詳細</li>
+<li>ARC のルーティングコントロール/準備状況チェックの詳細（コントロールプレーンのクラスターが5リージョン冗長という点など）</li>
+</ul>
+<h2 id="s9">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

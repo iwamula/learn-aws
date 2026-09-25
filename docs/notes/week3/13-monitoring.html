@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week3-13: 監視・監査・コンプライアンス（CloudTrail 組織証跡、Config、CloudWatch 横断監視、X-Ray）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">CloudTrail 組織証跡</a><a class="h3" href="#s2">イベントの種類</a><a class="h3" href="#s3">ログファイル整合性検証</a><a class="h3" href="#s4">CloudTrail Lake（注意）</a><a class="h2" href="#s5">AWS Config</a><a class="h3" href="#s6">アグリゲーター（データ集約）</a><a class="h3" href="#s7">組織ルール・組織適合パック（展開）</a><a class="h3" href="#s8">修復（Remediation）</a><a class="h2" href="#s9">CloudWatch: クロスアカウントオブザーバビリティ（OAM）</a><a class="h2" href="#s10">CloudWatch Logs: 集約の方法</a><a class="h2" href="#s11">CloudWatch アラーム</a><a class="h2" href="#s12">X-Ray</a><a class="h2" href="#s13">判断ポイント</a><a class="h2" href="#s14">未確認</a></nav><main><h1>Week3-13: 監視・監査・コンプライアンス（CloudTrail 組織証跡、Config、CloudWatch 横断監視、X-Ray）</h1>
+<p>出典（2026-09-26 に原文を curl で確認）: CloudTrail User Guide「Creating a trail for an organization」「Validating CloudTrail log file integrity」「CloudTrail concepts」「Working with CloudTrail Insights」「Creating an organization event data store」、AWS Config Developer Guide「Multi-Account Multi-Region Data Aggregation」「Managing AWS Config Rules Across All Accounts in Your Organization」「Managing Conformance Packs Across All Accounts in Your Organization」「Conformance Packs」「Remediating Noncompliant Resources」「Setting Up Auto Remediation」、CloudWatch User Guide「CloudWatch cross-account observability」「Create a composite alarm」、CloudWatch Logs User Guide「Cross-account cross-Region subscriptions」「Data centralization」、X-Ray Developer Guide「Configuring sampling rules」</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>組織の全アカウント・全リージョンの API 操作を 1 か所の S3 に記録</td>
+<td><strong>CloudTrail 組織証跡</strong>（マルチリージョン）</td>
+</tr>
+<tr>
+<td>ログが改ざん・削除されていないことを証明</td>
+<td><strong>ログファイル整合性検証</strong>（ダイジェストファイル）</td>
+</tr>
+<tr>
+<td>API 呼び出し数・エラー率の異常を検出</td>
+<td><strong>CloudTrail Insights</strong></td>
+</tr>
+<tr>
+<td>全アカウントのリソース構成・準拠状況を 1 か所で閲覧</td>
+<td><strong>Config アグリゲーター</strong>（読み取り専用）</td>
+</tr>
+<tr>
+<td>全アカウントに同じ Config ルールを強制展開</td>
+<td><strong>組織 Config ルール / 組織適合パック</strong>（API/CLI から）</td>
+</tr>
+<tr>
+<td>非準拠リソースを自動修復</td>
+<td>Config <strong>自動修復</strong>（SSM Automation ドキュメント）</td>
+</tr>
+<tr>
+<td>複数アカウントのメトリクス・ログ・トレースを 1 つの監視アカウントで見る</td>
+<td><strong>CloudWatch クロスアカウントオブザーバビリティ</strong>（OAM: sink / link）</td>
+</tr>
+<tr>
+<td>複数アカウントのログをリアルタイムに集約して独自処理</td>
+<td>Logs <strong>サブスクリプションフィルター</strong>（Kinesis / Firehose 宛先）</td>
+</tr>
+<tr>
+<td>組織全体のログを 1 アカウントへ自動レプリケート</td>
+<td>Logs <strong>データ集約（centralization ルール）</strong></td>
+</tr>
+<tr>
+<td>複数アラームの組み合わせで通知（ノイズ削減）</td>
+<td><strong>複合アラーム</strong></td>
+</tr>
+<tr>
+<td>分散アプリのリクエスト経路とボトルネックを追跡</td>
+<td><strong>X-Ray</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">CloudTrail 組織証跡</h2>
+<ul>
+<li><strong>組織証跡</strong>: 管理アカウント（または<strong>委任管理者</strong>）が作成。<strong>管理アカウントと全メンバーアカウントのイベント</strong>を記録。既存の管理アカウントの証跡を組織証跡に変更することもできる</li>
+<li><strong>コンソールで作ると必ずマルチリージョン</strong>。単一リージョン証跡は CLI のみ。<strong>パーティション（GovCloud 等）をまたぐ場合は各パーティションで作成</strong></li>
+<li>作成すると各メンバーアカウントに<strong>同名の証跡のコピー</strong>ができる。<strong>メンバーアカウントは見られるが、削除・ログ停止・記録内容の変更はできない</strong></li>
+<li>サービスにリンクされたロール <strong><code>AWSServiceRoleForCloudTrail</code></strong> が作られる。<strong>アカウントが組織に加わると自動で記録開始、抜けると証跡は削除</strong>（それまでのログは S3 に残る）</li>
+<li><strong>オプトインリージョン</strong>: マルチリージョン証跡のホームリージョンがオプトインリージョンの場合、メンバーアカウントがそのリージョンを有効化していないとログが送られない</li>
+<li>S3 バケット構成: <strong>組織 ID のフォルダ → アカウント ID のサブフォルダ</strong>。既定でバケットにアクセスできるのは<strong>管理アカウントのみ</strong></li>
+<li><strong>イベント履歴（Event history）は 90 日分の管理イベントで、サインイン中のアカウントのものだけ</strong>（管理アカウントからメンバーの分は見えない）。長期保存・組織横断は証跡（S3）か CloudTrail Lake</li>
+<li>証跡の検証エラー（S3 バケットポリシー不備、KMS 権限不足など）があっても<strong>メンバーアカウントに証跡は作られる</strong>（<code>get-trail-status</code> で確認）</li>
+<li>データイベントのリソース指定は、コンソールには管理アカウントのものしか出ないが、<strong>メンバーアカウントのリソースの ARN を追加でき、クロスアカウントのアクセス設定は不要</strong></li>
+</ul>
+<h3 id="s2">イベントの種類</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>種類</th>
+<th>内容</th>
+<th>既定</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>管理イベント</strong></td>
+<td>コントロールプレーン操作（リソース作成、セキュリティ設定、ConsoleLogin など）</td>
+<td><strong>記録される</strong></td>
+</tr>
+<tr>
+<td><strong>データイベント</strong></td>
+<td>データプレーン（S3 オブジェクトの GetObject/PutObject、Lambda Invoke など。大量）</td>
+<td><strong>記録されない</strong></td>
+</tr>
+<tr>
+<td><strong>ネットワークアクティビティイベント</strong></td>
+<td>原文に 4 種類目として記載（詳細は未確認）</td>
+<td>記録されない</td>
+</tr>
+<tr>
+<td><strong>Insights イベント</strong></td>
+<td>通常パターンから外れた API 呼び出し数／エラー率</td>
+<td><strong>記録されない</strong>（追加料金）</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>Insights</strong>: 過去の管理・データイベントから<strong>ベースライン</strong>を作り、逸脱したときに生成。<strong>API 呼び出し率は書き込み（write）の管理イベントが対象</strong>。エラー率は読み書きどちらでも可。<strong>Insights は、その証跡（データストア）が対応するイベントを記録していることが前提</strong>。Insights イベントは元のイベントと<strong>同じリージョン</strong>に生成。<strong>データイベントの Insights は証跡のみで、イベントデータストアは非対応</strong></li>
+</ul>
+<h3 id="s3">ログファイル整合性検証</h3>
+<ul>
+<li>ログごとに**ハッシュ（SHA-256）**を作り、<strong>1 時間ごとにダイジェストファイル</strong>（直近 1 時間のログのハッシュ一覧）を作成して <strong>SHA-256 with RSA で署名</strong>。リージョンごとに別のキーペア。<strong>変更・削除・偽造を検知できる</strong>（「その期間にログが配信されなかった」ことの証明にも使える）</li>
+<li>ダイジェストは<strong>同じ S3 バケットの別フォルダ</strong>に配信（ログと分けることで粒度の細かいポリシーが可能）。前のダイジェストの署名も含むので<strong>チェーン</strong>になる</li>
+<li><strong>有効化しただけでは検証されない</strong>（検証は AWS CLI か自作）。検証は CloudTrail が配信した場所のファイルが対象で、移動したログは自作の検証が必要</li>
+<li>ダイジェストの保護には <strong>S3 MFA Delete</strong> が挙げられている</li>
+</ul>
+<h3 id="s4">CloudTrail Lake（注意）</h3>
+<ul>
+<li>SQL でイベントを保存・クエリする機能。<strong>組織イベントデータストア</strong>は管理アカウントか委任管理者が作成（<strong>実体は管理アカウントに存在</strong>）。メンバーアカウントは<strong>見えない・変更できない・既定ではクエリもできない</strong></li>
+<li><strong>Insights の有効化、証跡イベントのコピー、ダッシュボードは管理アカウントのみ</strong>（委任管理者は不可）</li>
+<li><strong>原文の注記: 2026-05-31 以降、CloudTrail Lake は新規顧客の受付を終了</strong>（既存顧客は継続利用可）。試験範囲の記述としては古い可能性があるので、出題されても「証跡 + S3 + Athena」の方が無難</li>
+</ul>
+<h2 id="s5">AWS Config</h2>
+<h3 id="s6">アグリゲーター（データ集約）</h3>
+<ul>
+<li><strong>アグリゲーター</strong>: <strong>複数アカウント・複数リージョン</strong>（または組織全体）の構成・コンプライアンスデータを<strong>集約アカウント</strong>で閲覧する Config のリソース</li>
+<li><strong>読み取り専用</strong>。<strong>アグリゲーター経由でルールの展開や送信元アカウントの変更はできない</strong>。追加料金なし</li>
+<li>ソースアカウントは個別指定、または <strong>Organizations 経由</strong>で取得。<strong>Organizations のアカウントを集約する場合は認可（Authorization）が不要</strong>。組織外のアカウントは<strong>ソース側が集約アカウントを認可</strong>する必要がある</li>
+<li>用途: コンプライアンス監視、変更追跡、リソース関係の分析</li>
+</ul>
+<h3 id="s7">組織ルール・組織適合パック（展開）</h3>
+<ul>
+<li>管理アカウントから、<strong>全アカウントに Config ルール（または適合パック）を一括で作成・更新・削除</strong>。<strong>除外アカウントも指定可能</strong>。メンバーアカウントからは<strong>変更できない</strong>ため、ガバナンスの強制になる</li>
+<li><strong>組織ルールは API/CLI のみ</strong>（コンソール非対応）。適合パックの組織展開のコンソール操作は <strong>Systems Manager</strong> 経由</li>
+<li><strong>API 呼び出しはリージョン単位</strong>。他リージョンに展開するにはリージョンを切り替えて呼ぶ</li>
+<li><strong>新規アカウントが組織に加わるとルール／適合パックが展開され、抜けると削除される</strong>。ただし<strong>レコーダーがない場合の再試行は 7 時間</strong>まで（その間にレコーダーを作る必要がある）</li>
+<li><strong>展開前に Config の記録（recorder）をオンにしておく</strong></li>
+<li><strong>委任管理者を使う場合、管理アカウント側のサービスリンクロール（SLR）は自動作成されない</strong>。IAM で手動作成しないと、委任管理者から<strong>管理アカウントには展開できない</strong>（メンバーアカウントには展開できる）</li>
+<li>管理アカウントと委任管理者で展開したものは<strong>互いに見えない</strong>（Describe 系 API は呼び出したアカウントから展開したものだけ）</li>
+<li><strong>適合パック</strong>: Config ルールと修復アクションを YAML テンプレートにまとめた単位。<strong>アカウント＋リージョン、または組織</strong>にまとめてデプロイ。サンプルテンプレートあり</li>
+</ul>
+<h3 id="s8">修復（Remediation）</h3>
+<ul>
+<li><strong>SSM Automation ドキュメント</strong>で修復。AWS 提供のドキュメントか自作。<strong>手動 or 自動</strong>を選べる</li>
+<li>自動修復で<strong>失敗したときの再試行回数・秒数を設定可</strong>（再試行の実行にも SSM Automation の料金がかかる）</li>
+<li><strong>管理できるのはサービスリンクルール以外</strong>のルール</li>
+<li><strong>注意</strong>: 自動修復は<strong>定期的に取得されるコンプライアンススナップショット</strong>に基づくため、<strong>準拠済みのリソースに対して修復が始まることがある</strong>（古い評価結果による）</li>
+</ul>
+<h2 id="s9">CloudWatch: クロスアカウントオブザーバビリティ（OAM）</h2>
+<ul>
+<li><strong>監視アカウント</strong>（データを見る側）と<strong>ソースアカウント</strong>（データを出す側）。共有できるのは<strong>メトリクス、ロググループ、X-Ray トレース、Application Signals、Application Insights、Internet Monitor</strong>。メトリクスは名前空間、ログはロググループで<strong>絞り込み可</strong></li>
+<li><strong>Sink（シンク）</strong> = 監視アカウント側の接続点（<strong>アカウントあたり 1 リージョンに 1 つ</strong>、監視アカウントが管理）。<strong>Link（リンク）</strong> = ソース側が作る接続（<strong>ソースアカウントが管理</strong>）。リンクの削除もソース側から</li>
+<li><strong>リージョン内</strong>の話（クロスアカウント。リージョンをまたぐ表示は別機能のダッシュボード）</li>
+<li><strong>Organizations で組織／OU 単位にリンクすると、新規アカウントが自動でオンボードされる</strong>（推奨）。CloudFormation テンプレートで組織／OU 内の全アカウントをソースにできる（テンプレートの詳細は未確認）</li>
+<li>上限: 監視アカウント 1 つにつき<strong>最大 100,000 のソースアカウント</strong>、ソースアカウント 1 つは<strong>最大 5 つの監視アカウント</strong>にデータ共有</li>
+<li>監視アカウント兼ソースアカウントにした場合、<strong>自分のデータだけを送り、自分のソースアカウントのデータは中継しない</strong></li>
+<li>テレメトリ種別の不一致: <strong>監視アカウントの選択が多い → リンク成立し、両方で選んだ種別のみ共有</strong>。<strong>ソース側の選択が多い → リンク作成は失敗し、何も共有されない</strong></li>
+<li><strong>リンク後に新しくデータポイントが出るまで</strong>、監視アカウントのコンソールにメトリクス名が出ない</li>
+<li><strong>シンクを削除するには先にすべてのリンクを削除</strong>。<strong>新しい専用アカウントを監視アカウントにするのが推奨</strong>。<strong>ログ・メトリクス・Application Signals は追加料金なし、トレースは最初のコピーが無料</strong></li>
+</ul>
+<h2 id="s10">CloudWatch Logs: 集約の方法</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>クロスアカウントオブザーバビリティ</strong></td>
+<td>監視アカウントから、リンクされたソースアカウントのロググループを検索・可視化（原文は「シームレスに検索・可視化・分析」。Logs Insights での利用やコピーの有無の詳細は未確認）</td>
+</tr>
+<tr>
+<td><strong>サブスクリプションフィルター（クロスアカウント）</strong></td>
+<td>ログイベントを<strong>リアルタイムに</strong> Kinesis Data Streams / Firehose に送り、独自処理（例: セキュリティ部門の侵入検知）。<strong>ロググループと宛先（destination）は同じリージョン</strong>が必須（宛先が指すリソースは別リージョンでもよい）</td>
+</tr>
+<tr>
+<td><strong>データ集約（centralization ルール）</strong></td>
+<td>Organizations と連携し、<strong>ルールで複数アカウント・リージョンのログを 1 つの宛先アカウントにレプリケート</strong>。バックアップリージョンを設定可能</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>集約ログには <strong><code>@aws.account</code> / <code>@aws.region</code> / <code>@source.log</code></strong> のシステムフィールドがあり、送信元で絞り込める</li>
+<li><strong>集約は「ルール作成後に届いた新しいログ」のみ</strong>。過去ログは集約されない</li>
+<li>宛先アカウントで<strong>カスタマー管理 KMS キー</strong>を使う場合、キーに<strong>タグ <code>LogsManaged = true</code></strong> が必要</li>
+</ul>
+<h2 id="s11">CloudWatch アラーム</h2>
+<ul>
+<li><strong>複合アラーム</strong>: 他のアラームの状態を <code>ALARM(&quot;x&quot;) OR/AND/NOT ...</code> の<strong>ルール式</strong>で組み合わせる。関数は ALARM / OK / INSUFFICIENT_DATA。<strong>通知の重複・ノイズを減らす</strong>用途。アクションは SNS、Lambda、Systems Manager（OpsItem / Incident Manager）、調査（investigation）</li>
+<li><strong>複合アラーム同士の循環依存</strong>を作ると<strong>評価されなくなり、削除もできなくなる</strong>。回避は片方の AlarmRule を <code>False</code> に変更</li>
+</ul>
+<h2 id="s12">X-Ray</h2>
+<ul>
+<li><strong>サンプリングルール</strong>: 何割のリクエストを記録するか。<strong>既定は「毎秒最初の 1 リクエスト（reservoir）＋それ以降の 5%」</strong>。reservoir により、リクエストがある限り毎秒最低 1 トレースを記録</li>
+<li><strong>コンソールでルールを定義し SDK にサービスから読ませる</strong>と、(1) 複数インスタンスの reservoir が<strong>合算されて実効サンプリング率が上がる問題</strong>を避けられ、(2) <strong>再デプロイなしで変更</strong>できる。サービスが各インスタンスにクォータを割り当てる</li>
+<li><strong>サンプリングはペアレントベース</strong>: 最初の X-Ray 対応サービス（ルート）が<strong>1 回だけ決定</strong>し、下流は<strong>自身のルールに関係なくその決定に従う</strong>。下流サービスのルールだけ厳しくしても効かない → <strong>ルートサービスにルールを設定する</strong></li>
+<li>ルールが効くのは、サンプリング決定がまだされていない場所（API Gateway 等の入口、新しいトレースを始める非同期処理）</li>
+<li>対応: API Gateway、AppSync、Step Functions（アクティブトレーシング）、EC2/ECS/Beanstalk 上の ADOT または X-Ray SDK。<strong>ベストエフォート</strong>でありレートは厳密に一致しない</li>
+<li>クロスアカウントのトレース閲覧は上記の <strong>OAM（Traces を共有）</strong> で行う</li>
+</ul>
+<h2 id="s13">判断ポイント</h2>
+<ul>
+<li>「全アカウントの API 操作を改ざん不能に記録」→ <strong>組織証跡 + 整合性検証</strong>（メンバーは証跡を変更・停止できない。S3 バケットは既定で管理アカウントのみアクセス可）。ログ専用アカウントに置く構成は一般的な設計で、今回の原文では未確認</li>
+<li>「ログが変更・削除されていないことを証明」→ 整合性検証（ダイジェスト）。有効化だけでは検証されない</li>
+<li>「異常な API 呼び出し（急増・エラー）を検出」→ CloudTrail Insights（既定オフ、追加料金）</li>
+<li>「メンバーアカウントの証跡を見られるか」→ 見えるが、変更・削除は不可</li>
+<li>「全アカウントのコンプライアンスを 1 画面で」→ Config アグリゲーター（Organizations なら認可不要）。<strong>ルールを配りたい</strong>なら組織ルール / 適合パック（アグリゲーターでは展開できない）</li>
+<li>「新規アカウントにも Config ルールを自動適用」→ 組織ルール / 適合パック。ただしレコーダーが 7 時間以内に必要</li>
+<li>「非準拠リソースを自動修復」→ Config ルール + SSM Automation の自動修復</li>
+<li>「複数アカウントのメトリクス・ログ・トレースを 1 つのアカウントで」→ クロスアカウントオブザーバビリティ（Organizations で自動オンボード）</li>
+<li>「別アカウントのログをリアルタイム処理」→ サブスクリプションフィルター（宛先と同一リージョン）。「組織全体のログを 1 アカウントに集める」→ centralization ルール</li>
+<li>「アラーム通知の氾濫を減らす」→ 複合アラーム</li>
+<li>「X-Ray で下流サービスのサンプリング率を変えたい」→ ルートサービスのルールを変更（ペアレントベース）</li>
+</ul>
+<h2 id="s14">未確認</h2>
+<ul>
+<li><strong>ネットワークアクティビティイベントの詳細</strong>、CloudTrail の証跡の<strong>料金</strong>（管理イベントの最初のコピー無料など）、S3 バケットポリシー・KMS の設定例、CloudTrail → CloudWatch Logs / EventBridge 連携</li>
+<li><strong>CloudTrail Lake のその後の扱い</strong>（原文注記の 2026-05-31 以降の受付終了の詳細）</li>
+<li><strong>Config</strong>: レコーダーの記録対象・頻度（継続 / 日次）、コンフォーマンスパックの Region 別の詳細、アグリゲーターの認可手順の詳細、<strong>Config の料金</strong>、管理ルール vs カスタムルール（Lambda / Guard）</li>
+<li><strong>CloudWatch</strong>: メトリクスの解像度・保持期間、Logs Insights、メトリクスフィルター、<strong>異常検知アラーム</strong>、EMF、Synthetics、Container Insights、Application Signals、Contributor Insights、<strong>クロスアカウント・クロスリージョンダッシュボード</strong>、<strong>ログのエクスポート（S3）と保持期間</strong>、<strong>サブスクリプションの宛先の作成手順（Kinesis / Firehose / Lambda）</strong>、データ集約の上限・料金</li>
+<li><strong>X-Ray</strong>: X-Ray グループ、注釈・メタデータ、ADOT との関係、X-Ray デーモン、CloudWatch との統合の詳細</li>
+<li><strong>EventBridge（クロスアカウント／クロスリージョンのイベントバス）</strong>、<strong>Systems Manager（OpsCenter、Explorer）</strong>、<strong>Security Hub / GuardDuty との連携</strong>（ノート 07 を参照）</li>
+</ul>
+</main></body></html>

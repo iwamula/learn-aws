@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week3-12: CloudFormation / CDK（StackSets、ドリフト、変更セット、削除・置換の保護）</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">StackSets</a><a class="h3" href="#s2">権限モデル</a><a class="h3" href="#s3">自動デプロイ</a><a class="h3" href="#s4">操作オプション</a><a class="h2" href="#s5">ドリフト検出</a><a class="h2" href="#s6">変更セット</a><a class="h2" href="#s7">削除・置換・更新の保護</a><a class="h2" href="#s8">ロールバックと障害対応</a><a class="h2" href="#s9">スタックの分割と共有</a><a class="h2" href="#s10">CDK</a><a class="h2" href="#s11">判断ポイント</a><a class="h2" href="#s12">未確認</a><a class="h2" href="#s13">疑問・確認したい点</a></nav><main><h1>Week3-12: CloudFormation / CDK（StackSets、ドリフト、変更セット、削除・置換の保護）</h1>
+<p>出典（2026-09-26 に原文を curl で確認）: CloudFormation User Guide「StackSets concepts」「Create CloudFormation StackSets with service-managed permissions」「Enable or disable automatic deployments for StackSets in AWS Organizations」「Prevent failed StackSets deployments using target account gates」「Performing drift detection on CloudFormation StackSets」「Detect unmanaged configuration changes to stacks and resources with drift detection」「Update CloudFormation stacks using change sets」「Prevent updates to stack resources」「Continue rolling back an update」「Get exported outputs from a deployed CloudFormation stack」「Split a template into reusable pieces using nested stacks」、Template Reference「DeletionPolicy」「UpdateReplacePolicy」「CreationPolicy」、CDK v2 Developer Guide「AWS CDK bootstrapping」「Constructs」</p>
+<h2 id="s0">選定の早見表</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>要件</th>
+<th>選択</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>組織の全アカウント・複数リージョンに同じスタックを展開。新規アカウントにも自動で</td>
+<td>StackSets（サービスマネージド権限 + 自動デプロイ）</td>
+</tr>
+<tr>
+<td>組織外のアカウントにも展開</td>
+<td>StackSets（<strong>セルフマネージド権限</strong>。各ターゲットに IAM ロールを自分で作る）</td>
+</tr>
+<tr>
+<td>更新前に「置換・削除されるリソース」を確認したい</td>
+<td>変更セット</td>
+</tr>
+<tr>
+<td>コンソール等で手動変更されたかを検出したい</td>
+<td>ドリフト検出</td>
+</tr>
+<tr>
+<td>スタックを削除してもデータ（S3、DB）を残したい</td>
+<td><code>DeletionPolicy: Retain</code> / <code>Snapshot</code></td>
+</tr>
+<tr>
+<td>更新でリソースが置換されても旧リソースを残したい</td>
+<td><code>UpdateReplacePolicy: Retain</code> / <code>Snapshot</code></td>
+</tr>
+<tr>
+<td>EC2/ASG 内のアプリの起動完了を待ってからスタックを完了</td>
+<td><code>CreationPolicy</code> + cfn-signal</td>
+</tr>
+<tr>
+<td>特定リソースの更新・削除を誤操作から守る</td>
+<td>スタックポリシー（フェイルセーフ。アクセス制御は IAM）</td>
+</tr>
+<tr>
+<td>同一アカウント・リージョンのスタック間で値を共有</td>
+<td>Export + <code>Fn::ImportValue</code>（別アカウント・別リージョンは <code>Fn::GetStackOutput</code>）</td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">StackSets</h2>
+<ul>
+<li><strong>StackSet</strong> = 同じテンプレートを複数のアカウント・リージョンにデプロイするコンテナ。パラメータで個別にカスタマイズできる。<strong>StackSet はリージョンのリソース</strong>（作成したリージョンでしか見えない）</li>
+<li><strong>管理者アカウント</strong>で作り、<strong>ターゲットアカウント</strong>にスタック（<strong>スタックインスタンス</strong>）を作る。スタックインスタンスはスタックが無くても存在しうる（作成失敗の理由を持つ）</li>
+<li><strong>更新はテンプレートを全スタックに反映</strong>する。一部のスタックだけテンプレートを変えることはできない</li>
+<li>削除: 一部のアカウント・リージョンだけ削除／<strong>Retain Stacks</strong> で StackSet から外して単独スタックとして残す（以降はターゲット側アカウントで管理）。<strong>StackSet の削除はスタックインスタンスが 0 のときだけ</strong></li>
+</ul>
+<h3 id="s2">権限モデル</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>セルフマネージド</th>
+<th>サービスマネージド</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IAM ロール</td>
+<td><strong>利用者が</strong>各ターゲットに作成</td>
+<td><strong>StackSets が作成</strong></td>
+</tr>
+<tr>
+<td>展開先</td>
+<td>IAM ロールを作れる任意のアカウント</td>
+<td><strong>AWS Organizations 内のアカウントのみ</strong>（組織外は不可）</td>
+</tr>
+<tr>
+<td>新規アカウントへの自動デプロイ</td>
+<td>なし</td>
+<td><strong>あり（自動デプロイ）</strong></td>
+</tr>
+<tr>
+<td>前提</td>
+<td>ロールの信頼関係</td>
+<td>Organizations との<strong>信頼されたアクセス</strong>の有効化（管理アカウントの管理者のみ）</td>
+</tr>
+</tbody></table></div>
+<p>サービスマネージドの注意点:</p>
+<ul>
+<li>開始できるのは<strong>管理アカウントまたは委任管理者</strong>だが、<strong>操作は管理アカウントが実行</strong></li>
+<li><strong>管理アカウントにはスタックがデプロイされない</strong>（OU に属していても）</li>
+<li>対象は組織全体 / OU（親 OU を指定すると<strong>子 OU も含む</strong>）。アカウントフィルター（Intersection / Difference / Union）で個別指定も可能</li>
+<li><strong>委任管理者は組織の全アカウントにデプロイする権限を持ち、管理アカウント側で OU や操作を絞れない</strong></li>
+<li><strong>ネストスタック、マクロ・トランスフォームを含むテンプレートは非対応</strong></li>
+</ul>
+<h3 id="s3">自動デプロイ</h3>
+<ul>
+<li>有効にすると、アカウントの<strong>追加・削除・OU 間移動</strong>で自動的に作成・削除が走る。例: OU1 → OU2 に移すと、StackSet1 のスタックを削除し、StackSet2 のスタック作成をキューに入れる</li>
+<li><strong>アカウント削除時の動作</strong>を選ぶ: スタックを<strong>削除</strong>するか**保持（Retain）**するか</li>
+<li>設定は <strong>StackSet 単位</strong>（OU・アカウント・リージョンごとの選択的な調整は不可）</li>
+<li><strong>アカウントフィルターは自動デプロイでは考慮されない</strong>（個別指定していても、組織内の新規アカウントに展開される。防ぐには自動デプロイを無効化）</li>
+<li>依存関係（DependsOn）は 1 StackSet あたり最大 10、アカウントあたり最大 100。<strong>管理された実行（Active）の使用が推奨</strong>（並行実行で大規模組織を高速化）</li>
+</ul>
+<h3 id="s4">操作オプション</h3>
+<ul>
+<li><strong>Maximum concurrent accounts</strong>: 同時に操作するアカウント数（1 リージョン内）</li>
+<li><strong>Failure tolerance</strong>: <strong>リージョンごと</strong>に許容する失敗数。超えると<strong>そのリージョンが FAILED になり、残りのリージョンへの操作も取り消される</strong>。パーセント指定は<strong>切り捨て</strong></li>
+<li><strong>Region concurrency</strong>: <strong>Sequential（既定）</strong>＝1 リージョンずつ、<strong>Parallel</strong>＝全リージョン同時</li>
+<li><strong>Concurrency mode</strong>: Strict Failure Tolerance の場合、Maximum concurrent accounts は Failure tolerance + 1 が上限（原文の記述。もう一方のモードの詳細は未取得）</li>
+<li><strong>アカウントゲート</strong>: ターゲットでの操作前に Lambda（名前は <strong><code>AWSCloudFormationStackSetAccountGate</code></strong> 固定）を呼び、SUCCEEDED を返すときだけ続行（例: アラーム発報中のアカウントを避ける）。関数が無ければ<strong>チェックをスキップして続行</strong>。ゲート失敗は失敗許容数にカウントされる。StackSets 専用</li>
+<li>スタックインスタンスのステータス: CURRENT / OUTDATED / <strong>INOPERABLE</strong>（削除失敗。以降の更新の対象外。Retain 付き削除 → 手動削除が必要）/ FAILED / CANCELLED など</li>
+</ul>
+<h2 id="s5">ドリフト検出</h2>
+<ul>
+<li>「<strong>実際の設定がテンプレート（とパラメータ）から外れていないか</strong>」を検出。<strong>テンプレートで明示したプロパティだけ</strong>が対象で、<strong>既定値は追跡されない</strong>（追跡したいなら既定値でも明示する）。スタックレベルのタグも検出対象</li>
+<li><strong>ドリフトを検出するだけ</strong>で、自動修復はしない。是正は手動（リソースをテンプレートに合わせる、またはインポートで取り込む）</li>
+<li>リソースのドリフトステータス: IN_SYNC / MODIFIED / DELETED / NOT_CHECKED（<strong>ドリフト検出に対応しないリソース</strong>）</li>
+<li><strong>ネストスタックのドリフトは親の検出に含まれない</strong>（ネストスタックに直接実行する）</li>
+<li>実行できるスタックの状態: CREATE_COMPLETE / UPDATE_COMPLETE / UPDATE_ROLLBACK_COMPLETE / UPDATE_ROLLBACK_FAILED</li>
+<li>権限: 対象リソースの読み取り権限 + <code>cloudformation:DetectStackDrift</code> など</li>
+<li><strong>StackSet のドリフト</strong>: 各スタックインスタンスのスタックでドリフト検出を行い、1 つでもドリフトしていれば StackSet 全体がドリフト。<strong>CloudFormation 経由でスタックを直接更新したもの（別テンプレートにした等）はドリフトとみなされない</strong></li>
+<li>継続的な構成監視・修復・組織横断の準拠評価は <strong>AWS Config</strong>（ノート 13 で扱う）</li>
+</ul>
+<h2 id="s6">変更セット</h2>
+<ul>
+<li>更新を<strong>実行せずにプレビュー</strong>する。追加・変更・削除されるリソースと、プロパティの前後比較を確認。<strong>置換（Replacement）や削除の有無</strong>を実行前に知るのが主目的</li>
+<li>複数の変更セットを作って比較できる。実行した時点で、そのスタックの<strong>他の変更セットは削除される</strong></li>
+<li><strong>成功を保証しない</strong>。作成時に事前検証（構文エラー、リソース名の衝突、クォータなど）は行うが、実行時の条件（カスタムリソースのロジック等）による失敗は起こりうる</li>
+<li>ネストスタックにも対応。<strong>express モード</strong>（<code>--deployment-config &#39;{&quot;mode&quot;:&quot;EXPRESS&quot;}&#39;</code>）で高速化</li>
+</ul>
+<h2 id="s7">削除・置換・更新の保護</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>仕組み</th>
+<th>効く場面</th>
+<th>主な値</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>DeletionPolicy</strong></td>
+<td><strong>スタック削除</strong>時、およびテンプレートから<strong>リソース定義を消した更新</strong>時</td>
+<td>Delete（既定）/ <strong>Retain</strong> / <strong>RetainExceptOnCreate</strong> / <strong>Snapshot</strong></td>
+</tr>
+<tr>
+<td><strong>UpdateReplacePolicy</strong></td>
+<td>更新で<strong>置換</strong>（新しい物理 ID）が起きたとき、<strong>旧リソース</strong>をどうするか</td>
+<td>Delete（既定）/ Retain / Snapshot</td>
+</tr>
+<tr>
+<td><strong>スタックポリシー</strong></td>
+<td><strong>スタック更新</strong>時のリソース保護（JSON）</td>
+<td>Allow / Deny</td>
+</tr>
+<tr>
+<td><strong>CreationPolicy</strong></td>
+<td>作成時にシグナル数 or タイムアウトまで CREATE_COMPLETE にしない</td>
+<td>EC2 / ASG / WaitCondition / AppStream Fleet が対象</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li><strong>DeletionPolicy の既定は Delete。例外</strong>: <code>AWS::RDS::DBCluster</code>、および <code>DBClusterIdentifier</code> を指定しない <code>AWS::RDS::DBInstance</code> は既定が <strong>Snapshot</strong>。S3 バケットは<strong>中身が空でないと削除に失敗</strong>する</li>
+<li><strong>DeletionPolicy は置換されたリソースには効かない</strong>（置換は UpdateReplacePolicy の担当）。<strong>Retain したリソースは削除後も課金される</strong>。Snapshot 対応: EBS ボリューム、RDS、Aurora（DBCluster）、DocumentDB、Neptune、ElastiCache、Redshift など。原文の例は DB に<strong>両方</strong>（DeletionPolicy と UpdateReplacePolicy）に Retain を付けている（削除と置換は別経路のため）</li>
+<li><strong>RetainExceptOnCreate</strong>: 作成時のロールバックでは削除し、それ以外（スタック削除など）では保持。「空のまま作成失敗したリソースは消し、使用中のデータは残す」</li>
+<li><strong>スタックポリシー</strong>: 設定すると<strong>全リソースが既定で保護</strong>（明示的な Allow が必要）。<strong>Deny が Allow に優先</strong>。<strong>更新時のみ</strong>有効で、IAM のようなアクセス制御ではなく<strong>フェイルセーフ</strong>。スタックあたり 1 つ、ユーザー別に変えられない。依存で自動更新されるリソースにも権限が要る</li>
+</ul>
+<h2 id="s8">ロールバックと障害対応</h2>
+<ul>
+<li>更新失敗 → 自動ロールバック。<strong>ロールバック自体が失敗 → UPDATE_ROLLBACK_FAILED</strong>（例: 旧 DB が CloudFormation の外で削除されていた）。この状態のスタックは<strong>更新不可</strong>だが、原因を直して <strong>ContinueUpdateRollback</strong> で UPDATE_ROLLBACK_COMPLETE に戻せる</li>
+<li>直せない場合は <strong><code>--resources-to-skip</code></strong> でロールバックできないリソースをスキップ。スキップしたリソースはテンプレートと<strong>不整合になるため、次の更新前に整合させる</strong>（放置すると更新でスタックが復旧不能になりうる）。<strong>ロールバック中に UPDATE_FAILED になったリソースだけ</strong>が対象（順方向の更新で失敗したものは不可）。ネストは <code>NestedStackName.ResourceLogicalID</code> 形式</li>
+<li><strong>CreationPolicy</strong>（cfn-signal / SignalResource API）: アプリの構成完了を待ってから次に進める。ASG は <code>MinSuccessfulInstancesPercent</code> と <code>ResourceSignal</code>（Count/Timeout）を指定</li>
+</ul>
+<h2 id="s9">スタックの分割と共有</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>使いどころ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>ネストスタック</strong>（<code>AWS::CloudFormation::Stack</code>）</td>
+<td>共通構成（ALB 等）を再利用。<strong>ネストグループ内</strong>の情報共有。ルートスタックで一括管理</td>
+</tr>
+<tr>
+<td><strong>Export / <code>Fn::ImportValue</code></strong></td>
+<td><strong>同一アカウント・同一リージョン</strong>の別スタックと共有（ネットワーク層 → アプリ層など）</td>
+</tr>
+<tr>
+<td><strong><code>Fn::GetStackOutput</code></strong></td>
+<td><strong>別アカウント・別リージョン</strong>のスタック出力を参照</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>Export 名は<strong>アカウント・リージョン内で一意</strong>。<strong>インポートされている間は、エクスポート元のスタックの削除も出力値の変更もできない</strong></li>
+<li>ネストスタックの親を更新するとき、ロールバックは子にも波及する。ドリフト検出は子に個別実行</li>
+</ul>
+<h2 id="s10">CDK</h2>
+<ul>
+<li><strong>CDK は CloudFormation にデプロイする</strong>（内部で CloudFormation テンプレートを生成）。よって上記のドリフト・変更セット・ロールバックの知識がそのまま効く</li>
+<li><strong>コンストラクトの階層</strong>: <strong>L1</strong>（<code>Cfn</code> で始まる。CloudFormation リソースと 1 対 1、抽象化なし）/ <strong>L2</strong>（キュレート済み。既定値・ベストプラクティスの権限・ヘルパーメソッド。最も一般的）/ <strong>L3</strong>（パターン。複数リソースの構成）</li>
+<li><strong>ブートストラップ</strong>: CDK を使う各<strong>環境（アカウント × リージョン）ごとに</strong>、<code>cdk bootstrap</code> で <strong>S3 バケット（アセット）、ECR リポジトリ（Docker イメージ）、IAM ロール</strong>を作る。実体は <strong><code>CDKToolkit</code></strong> という CloudFormation スタック。<strong>環境は独立しているので、使う環境ごとに 1 回必要</strong></li>
+</ul>
+<h2 id="s11">判断ポイント</h2>
+<ul>
+<li>「組織の全アカウントに統一のベースライン（ロギング、IAM ロール等）を展開し、新規アカウントにも自動適用」→ StackSets（サービスマネージド + 自動デプロイ）。<strong>管理アカウントには展開されない</strong>点に注意</li>
+<li>「組織外のアカウントにも同じスタックを展開」→ セルフマネージド権限</li>
+<li>「StackSets の展開が失敗したら以降のリージョンを止めたい」→ Failure tolerance（<strong>リージョンごと</strong>）+ Region concurrency を Sequential</li>
+<li>「デプロイ前に置換・削除されるリソースを確認」→ 変更セット。「手動変更の検出」→ ドリフト検出（修復はしない）</li>
+<li>「スタック削除後も DB/S3 のデータを残す」→ DeletionPolicy（Retain / Snapshot）。「更新による置換でデータを失いたくない」→ UpdateReplacePolicy</li>
+<li>「更新ロールバックが失敗して更新できない」→ ContinueUpdateRollback（必要なら resources-to-skip）</li>
+<li>「特定リソースを誤って更新・削除しない」→ スタックポリシー（更新時のみ）。削除の防止は DeletionPolicy や終了保護（終了保護は今回未確認）</li>
+<li>「別アカウント・別リージョンのスタック出力を参照」→ <code>Fn::GetStackOutput</code>（Export/ImportValue は同一アカウント・リージョン限定）</li>
+<li>「EC2 内のソフトのインストール完了を待つ」→ CreationPolicy + cfn-signal</li>
+</ul>
+<h2 id="s12">未確認</h2>
+<ul>
+<li><strong>ドリフト対応リソースの範囲</strong>（Resource type support の一覧）、<strong>ドリフト対応の変更セット（drift-aware change sets）</strong>（該当ページの取得に失敗）</li>
+<li><strong>Concurrency mode（Strict / Soft）の詳細</strong>（該当ページの取得に失敗）</li>
+<li><strong>スタックの終了保護（termination protection）、サービスロール</strong>、<em><em>スタックポリシーの Update:</em> アクションの種類</em>*</li>
+<li><strong>Fn::GetStackOutput の詳細</strong>（原文の記述は Export のページの 1 文のみ）</li>
+<li><strong>カスタムリソース、ラッピング（マクロ・トランスフォーム、SAM）、cfn-init / cfn-hup、WaitCondition の詳細</strong></li>
+<li><strong>CloudFormation ハンドラー・レジストリ・フック</strong>（フックは <code>other/fact-check-log.md</code> の 09-25 分を参照）、<strong>CloudFormation のクォータ</strong>（テンプレート上限、リソース数など）</li>
+<li><strong>CDK: <code>cdk diff</code> / <code>cdk deploy</code> / アセット / Aspects / CDK Pipelines</strong>、ブートストラップで作られる IAM ロールの種類</li>
+<li><strong>AWS Service Catalog、Elastic Beanstalk、OpsWorks との使い分け</strong>、<strong>Blue/Green（CodeDeploy）</strong></li>
+</ul>
+<h2 id="s13">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week1-4: IAM ポリシー評価とクロスアカウント権限</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d0d7de;--code:#f6f8fa;--accent:#0969da;--quote:#ddf4ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--code:#161b22;--accent:#4493f8;--quote:#10233a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex}
+nav{position:sticky;top:0;align-self:flex-start;width:260px;flex:none;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:2px 0}
+nav a:hover{color:var(--accent)}
+nav a.h3{padding-left:14px;font-size:13px}
+main{max-width:920px;min-width:0;padding:32px 40px 80px}
+h1,h2,h3{line-height:1.35}
+h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+h3{margin-top:1.8em}
+a{color:var(--accent)}
+code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.5}
+pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:.4em 1em;border-left:4px solid var(--accent);background:var(--quote);border-radius:0 6px 6px 0}
+blockquote>:first-child{margin-top:0}blockquote>:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;font-size:14.5px;line-height:1.6}
+th,td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+th{background:var(--code);text-align:left;white-space:nowrap}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
+hr{border:0;border-top:1px solid var(--line)}
+@media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
+</style></head>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">ポリシーの種類</a><a class="h2" href="#s1">評価ロジック（同一アカウント）</a><a class="h2" href="#s2">クロスアカウントの場合</a><a class="h2" href="#s3">条件キー（頻出）</a><a class="h2" href="#s4">判断ポイント</a><a class="h2" href="#s5">疑問・確認したい点</a></nav><main><h1>Week1-4: IAM ポリシー評価とクロスアカウント権限</h1>
+<h2 id="s0">ポリシーの種類</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>種類</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>アイデンティティベース</td>
+<td>ユーザー/グループ/ロールに付与し、権限を与える</td>
+</tr>
+<tr>
+<td>リソースベース</td>
+<td>S3, SQS, KMS, Lambda 等に付与。<strong>Principal を指定</strong>。他アカウントに直接許可できる</td>
+</tr>
+<tr>
+<td><strong>Permissions Boundary</strong></td>
+<td>ユーザー/ロールに付与できる権限の<strong>上限</strong>（権限は付与しない）</td>
+</tr>
+<tr>
+<td><strong>SCP</strong></td>
+<td>アカウント/OU の権限の上限（管理アカウントには非適用）</td>
+</tr>
+<tr>
+<td><strong>セッションポリシー</strong></td>
+<td>AssumeRole 時に一時的に権限を絞る</td>
+</tr>
+<tr>
+<td>RCP（リソースコントロールポリシー）</td>
+<td>組織内リソースへのアクセスの上限（リソース側のガードレール）</td>
+</tr>
+</tbody></table></div>
+<h2 id="s1">評価ロジック（同一アカウント）</h2>
+<ol>
+<li><strong>明示的 Deny</strong> があれば拒否（最優先）</li>
+<li>SCP、RCP、Permissions Boundary、セッションポリシーで<strong>Allow されていなければ拒否</strong>（これらは全部の共通部分が有効）</li>
+<li><strong>同一アカウント</strong>では、アイデンティティベース<strong>または</strong>リソースベースのどちらかで Allow があれば許可（リソースポリシーの Principal がアカウント <code>root</code> の場合は、アイデンティティ側の Allow も必要）</li>
+<li>それ以外は暗黙の Deny</li>
+</ol>
+<h2 id="s2">クロスアカウントの場合</h2>
+<ul>
+<li><strong>アイデンティティ側とリソース側の両方</strong>で Allow が必要</li>
+<li>リソースポリシーの Principal に相手アカウントの <code>root</code> を指定しただけでは足りず、相手側の管理者がアイデンティティポリシーで委任する必要がある</li>
+<li><strong>同一アカウント</strong>で、リソースポリシーが Principal に <strong>IAM ユーザー ARN</strong> を直接指定している場合、Permissions Boundary の制限を受けずに許可される</li>
+<li><strong>AssumeRole</strong> すると呼び出し元の権限は失われ、ロールの権限になる。リソースベースで直接許可すれば元の権限を保ったまま操作できる</li>
+</ul>
+<h2 id="s3">条件キー（頻出）</h2>
+<ul>
+<li><code>aws:PrincipalOrgID</code>: 組織内の全アカウントを許可（S3 バケットポリシー等で個別のアカウント列挙を避けられる）</li>
+<li><code>aws:SourceIp</code> / <code>aws:SourceVpce</code>: 接続元制限</li>
+<li><code>aws:RequestedRegion</code>: リージョン制限</li>
+<li><code>aws:MultiFactorAuthPresent</code>: MFA 必須</li>
+<li><code>aws:SourceArn</code> / <code>aws:SourceAccount</code>: サービスがロールを使うときの confused deputy 対策</li>
+</ul>
+<h2 id="s4">判断ポイント</h2>
+<ul>
+<li>「開発者に IAM ロール作成を任せたいが、権限昇格は防ぎたい」→ Permissions Boundary（付与できる上限を設定）</li>
+<li>「組織内のアカウントのみアクセス可」→ <code>aws:PrincipalOrgID</code> 条件</li>
+<li>「外部ベンダーにロールを引き受けさせる」→ ExternalId</li>
+<li>「EC2 に権限を与える」→ インスタンスプロファイル（IAM ロール）。アクセスキーを埋め込まない</li>
+<li>「Web/モバイルアプリのユーザーに一時的にAWSへアクセス」→ Cognito Identity Pool（ID プール）</li>
+<li>「オンプレのサーバーから」→ IAM Roles Anywhere（証明書ベース）</li>
+</ul>
+<h2 id="s5">疑問・確認したい点</h2>
+<p>（ここに <code>Qn ...</code> と追記して、AIに事実確認を依頼してください）</p>
+</main></body></html>
