@@ -443,3 +443,89 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 16: stale-while-revalidate / stale-if-error | ➕ どちらも指定値と Max TTL の小さいほうまで古いコンテンツを提供。Max TTL 経過後は不可 |
 | 16: オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシー一覧 | 未確認（今回対象外） |
 
+
+## 2026-09-26（08〜20 の個別の未確認項目 第20弾: CloudFront オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシー）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Control origin requests with a policy」（controlling-origin-requests.html）、「Use managed origin request policies」「Use managed cache policies」「Understand response headers policies」「Use managed response headers policies」
+
+| 項目 | 結果 |
+|---|---|
+| 16: オリジンリクエストポリシーの役割 | ✅ キャッシュキーとは別にオリジンリクエストへ含める情報を指定し、ヒット率を保てる。キャッシュキーの値は自動でオリジンにも送られる。ポリシーなしでは Host / User-Agent / X-Amz-Cf-Id 以外のビューワー情報は送られない（旧設定はヘッダーを既定転送）。ビューワーにない CloudFront ヘッダーも追加可 |
+| 16: 管理オリジンリクエストポリシー | ✅ AllViewer / AllViewerAndCloudFrontHeaders-2022-06 / AllViewerExceptHostHeader / CORS-CustomOrigin / CORS-S3Origin / HostHeaderOnly / UserAgentRefererHeaders / Elemental-MediaTailor-PersonalizedManifests の 8 種。AllViewerExceptHostHeader は API Gateway・Lambda 関数 URL 向け（Host を除くと CloudFront がオリジンのドメイン名を Host に付ける） |
+| 16: 管理キャッシュポリシー | ✅ CachingOptimized は Min 1 秒 / Default 24 時間 / Max 365 日、キャッシュキーは正規化 Accept-Encoding のみ。CachingDisabled は TTL 0。UseOriginCacheControlHeaders(-QueryStrings) は Min TTL 0 |
+| 16: 管理ポリシーの no-cache 警告 | ⚠️ Min TTL > 0 の CachingOptimized 系・Amplify は、no-cache / no-store / private があってもキャッシュされる（原文の警告。第19弾と整合） |
+| 16: レスポンスヘッダーポリシー | ➕ 追加 / 削除するヘッダーを指定。CORS・セキュリティ・カスタム・削除・Server-Timing の各設定。CSP は 1783 文字まで、Allow-Headers の `*` は Authorization を含まない、Allow-Origin のワイルドカードは先頭サブドメインのみ。Origin override は true でポリシー値が優先、false でオリジン値が優先 |
+| 16: 管理レスポンスヘッダーポリシー | ➕ SimpleCORS / CORS-With-Preflight / SecurityHeadersPolicy / CORS-and-SecurityHeadersPolicy / CORS-with-preflight-and-SecurityHeadersPolicy の 5 種。X-Content-Type-Options だけ Override origin が「はい」 |
+| 16: Server-Timing・カスタム / 削除ヘッダーの詳細、Amplify ポリシーの細目、ポリシーの作成上限 | 未確認（今回は該当ページの一部のみ確認） |
+
+
+## 2026-09-26（08〜20 の個別の未確認項目 第21弾: CloudFront のオリジンへの HTTPS 要件とカスタムヘッダー）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Require HTTPS for communication between CloudFront and your custom origin」（using-https-cloudfront-to-custom-origin.html）、「…your Amazon S3 origin」（using-https-cloudfront-to-s3-origin.html）、「Restrict access to Application Load Balancers」（restrict-access-to-load-balancer.html）、「Add custom headers to origin requests」（add-origin-custom-headers.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: Origin Protocol Policy | ✅ HTTPS Only / Match Viewer。Match Viewer は Viewer Protocol Policy が Redirect HTTP to HTTPS か HTTPS Only のときだけ選ぶ（原文の指示） |
+| 16: オリジンの証明書 | ➕ ELB は ACM 発行 / ACM インポートのサードパーティ証明書可。ELB 以外は信頼できるサードパーティ CA 必須。自己署名は不可。ドメイン名は Origin domain か（Host 転送時は）Host ヘッダーの値。不正・期限切れ・チェーン不備は 502（X-Cache: Error from cloudfront） |
+| 16: S3 オリジンの HTTPS | ➕ ウェブサイトエンドポイントは HTTPS 非対応。通常バケットは既定 Match Viewer（OAC 有効時は OAC の設定による） |
+| 16: ALB のシークレットヘッダー方式 | ✅ Origin Custom Headers で付与し、ALB のリスナールールで転送、デフォルトは固定レスポンス 403。名前と値は秘密にし、本番ではランダム値。HTTPS Only と定期ローテーションを推奨。HTTPS Only 時は Host ヘッダー転送（AllViewer 例）が必要 |
+| 16: ACM 証明書のリージョン | ➕ ビューワー〜CloudFront は us-east-1、CloudFront〜ALB は ALB のあるリージョン（例: ap-southeast-2 の ALB なら両方に必要） |
+| 16: カスタムヘッダーの制限 | ➕ 追加不可: Cache-Control / Connection / Content-Length / Cookie / Host / If-* / Range / Pragma / Transfer-Encoding / Via など、X-Amz-* / X-Edge-* / X-Real-Ip。同名のビューワーヘッダーは上書き。Authorization は既定で転送されない |
+| 16: カスタムヘッダーのクォータ（Quotas on headers） | 未確認（該当ページを取得していない） |
+
+
+## 2026-09-26（08〜20 の個別の未確認項目 第22弾: CloudFront のヘッダー関連クォータ）
+根拠: 公式ドキュメント原文（curl で取得）— CloudFront Developer Guide「Quotas」（cloudfront-limits.html）の「Quotas on headers」「General quotas on policies」
+
+| 項目 | 結果 |
+|---|---|
+| 16: オリジンへ追加するカスタムヘッダー | ✅ 30 個（引き上げ申請可）。名前 256 文字、値 1,783 文字、名前と値の合計 10,240 文字 |
+| 16: レスポンスヘッダーポリシーの上限 | ➕ カスタムヘッダー 10 個 / ポリシー、カスタムポリシー 20 個 / アカウント（管理ポリシーは対象外）、同一ポリシーの関連付け 100 ディストリビューション。CSP・CORS Allow-Origin の値は 1,783 文字 |
+| 16: 転送ヘッダー | ➕ キャッシュビヘイビアあたり 25 個、旧設定（レガシーキャッシュ設定）のヘッダー指定は 10 個 |
+| 16: Server-Timing・Amplify ポリシーの細目 | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第23弾: CloudFront の SNI と専用 IP 独自 SSL）
+根拠: 公式ドキュメント原文（curl で取得）— CloudFront Developer Guide「Choose how CloudFront serves HTTPS requests」（cnames-https-dedicated-ip-or-sni.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: SNI | ✅ 推奨方式。2010 年以降の ブラウザ / クライアントが対応する TLS 拡張。ClientHello の SNI からディストリビューションを特定して証明書を返す。IP は専用ではなく、特定できないと接続を切る |
+| 16: 専用 IP | ✅ 全クライアントで動作。追加の月額料金（証明書の関連付け + ディストリビューション有効化で開始）。専用 IP は静的ではなく変わりうる（エッジサーバー範囲から動的割り当て） |
+| 16: 専用 IP 証明書の上限 | ➕ 既定 2。3 以上はサポートケースで申請。1 ディストリビューションに関連付けられる証明書は 1 つ |
+| 16: SNI 非対応クライアントの代替 | ➕ 専用 IP / CloudFront 既定証明書（cloudfront.net ドメイン、TLSv1 以降、SSLv3 不可）/ ブラウザ更新 / HTTP |
+| 16: 専用 IP の単価 | 未確認（原文は CloudFront pricing ページ参照のみ） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第24弾: CloudFront レスポンスヘッダーポリシーのカスタム / 削除ヘッダーと Server-Timing）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Understand response headers policies」（understanding-response-headers-policies.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: カスタムヘッダー | ✅ 全レスポンスに追加。値は省略可。Origin override true でオリジンの同名ヘッダーを無視してポリシー値、false でオリジン値を優先（オリジンになければポリシー値を追加） |
+| 16: ヘッダー削除 | ➕ キャッシュヒット / オリジン経由を問わず全レスポンスから削除。削除が先、追加が後で、同じヘッダーを他の設定で追加していれば付く。Server / Date を削除しても CloudFront が自前の値を付ける（Server は CloudFront） |
+| 16: 削除できないヘッダー | ➕ Connection / Content-Length / Via / Transfer-Encoding / Host / Upgrade / X-Amz-Cf-.* / X-Edge-.* など。指定するとエラー |
+| 16: Server-Timing | ➕ サンプリングレート 0〜100（小数点以下 4 桁まで）。`Pragma: server-timing` をリクエストに付ければレート 0 でも返る。オリジンの Server-Timing はキャッシュミス時のみ CloudFront のメトリクスと 1 本に統合、ヒット時は CloudFront のメトリクスのみ |
+| 16: Server-Timing の個別メトリクス一覧、Amplify ポリシーの細目 | 未確認（メトリクス一覧は取得した範囲で本文を確認していない） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第25弾: CloudFront Continuous deployment）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Use CloudFront continuous deployment…」（continuous-deployment.html）、「CloudFront continuous deployment workflow」「Learn how continuous deployment works」「Work with a staging distribution and continuous deployment policy」「Quotas and other considerations for continuous deployment」
+
+| 項目 | 結果 |
+|---|---|
+| 16: 仕組みと流れ | ✅ プライマリからステージングを作成（コピー）→ continuous deployment policy をアタッチ → 更新・監視 → 昇格でステージングの設定をプライマリにコピーしポリシーは無効化。ビューワーはステージングに直接アクセス不可 |
+| 16: トラフィック設定 | ✅ 重みベース（最大 15%、CLI は 0.01〜0.15、セッションスティッキネスのアイドル 300〜3600 秒）とヘッダーベース（`aws-cf-cd-` プレフィックス必須）。ポリシー / スティッキネスの有効・無効切替で全セッションがリセット |
+| 16: 変更可能な設定 | ➕ キャッシュビヘイビア・オリジン / オリジングループ・カスタムエラー・地理的制限・デフォルトルートオブジェクト・ログ・コメント。参照先のポリシー / 関数も更新可 |
+| 16: キャッシュ | ➕ プライマリとステージングはキャッシュを共有しない |
+| 16: クォータ | ✅ ステージング 20 / アカウント、ポリシー 20 / アカウント |
+| 16: 制約 | ➕ HTTP/3 有効の distribution では使えない。OAC の S3 はバケットポリシーにステージングも許可。WAF ACL は初回関連付け・解除不可（ポリシー削除が先で、ステージングも削除される）。ピーク時は全リクエストがプライマリへ送られることがある |
+| 16: ステージングの監視（Monitor a staging distribution） | 未確認（該当ページを取得していない） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第26弾: CloudFront リアルタイムログ / 標準ログ）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Use real-time access logs」（real-time-logs.html）、「Configure standard logging (v2)」（standard-logging.html）、「Standard logging (legacy) — S3」（standard-logging-legacy-s3.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: リアルタイムログの設定項目 | ✅ サンプリングレート 1〜100 の整数、フィールド最大 40 個（CMCD 含む）、対象キャッシュビヘイビア。数秒以内に配信 |
+| 16: リアルタイムログの配信先 | ✅ Kinesis Data Streams のみ（StreamType は Kinesis）。S3 / Redshift / OpenSearch / サードパーティは自作コンシューマーか Firehose 経由。CloudFront の課金に加えて Kinesis の料金 |
+| 16: リアルタイムログの性質 | ➕ ベストエフォート（遅延・まれに欠落あり、課金レポートと件数が一致しない）。フィールドは固定順で届く。1 レコード約 500 バイト〜全フィールドで約 1 KB。Kinesis のスロットリング時はシャード追加。IAM ロールで書き込み |
+| 16: 標準ログ v2 | ➕ 配信先は CloudWatch Logs / Firehose / S3。形式は JSON / Plain / w3c / Raw / Parquet（S3 のみ）で作成時のみ指定可。S3 はオプトインリージョン・パーティション・Hive 互換。クロスアカウント可。CloudWatch API での有効化は us-east-1。有効化は無料で配信先の料金のみ（Parquet 変換は CloudWatch 料金） |
+| 16: 標準ログ（レガシー） | ➕ S3 のみ。ACL 有効が必須で Object Ownership「バケット所有者の強制」は不可。オプトインリージョン非対応。v2 と併用可 |
+| 16: cs-uri-stem の違い | ➕ リアルタイムログはクエリ文字列を含み、標準ログは含まない |
+| 16: 標準ログの配信遅延時間、リアルタイムログのシャード数計算式の細部 | 未確認（取得した範囲で本文を確認していない） |

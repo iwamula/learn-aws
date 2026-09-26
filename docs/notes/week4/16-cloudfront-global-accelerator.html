@@ -27,7 +27,7 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 50%,transparent)}
 hr{border:0;border-top:1px solid var(--line)}
 @media (max-width:860px){body{display:block}nav{position:static;width:auto;height:auto;border:0}main{padding:16px}}
 </style></head>
-<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">CloudFront と Global Accelerator の違い</a><a class="h2" href="#s2">CloudFront: S3 オリジンの保護（OAC）</a><a class="h2" href="#s3">CloudFront: ALB / EC2 オリジンの保護</a><a class="h2" href="#s4">CloudFront: 署名付き URL と署名付き Cookie</a><a class="h2" href="#s5">CloudFront: オリジンフェイルオーバー（詳細）</a><a class="h2" href="#s6">CloudFront: Origin Shield</a><a class="h2" href="#s7">CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）</a><a class="h2" href="#s8">CloudFront: その他（HTTPS・暗号化・地理的制限）</a><a class="h2" href="#s9">Global Accelerator</a><a class="h2" href="#s10">判断ポイント</a><a class="h2" href="#s11">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s12">Q1. S3 バケットを CloudFront 経由のみで公開したい。SSE-KMS も使っている。どうする？</a><a class="h3" href="#s13">Q2. S3 を静的ウェブサイトエンドポイントとして設定している。OAC で保護できる？</a><a class="h3" href="#s14">Q3. プライベートサブネットの ALB を、CloudFront 経由でのみ公開したい。どうする？</a><a class="h3" href="#s15">Q4. 有料会員が HLS 動画（多数のファイル）を視聴する。URL は変えたくない。どうする？</a><a class="h3" href="#s16">Q5. 顧客のファイアウォールに静的 IP を許可してもらう必要がある HTTP アプリを、複数リージョンで高速にフェイルオーバーさせたい。どうする？</a><a class="h3" href="#s17">Q6. CloudFront のオリジンフェイルオーバーは、POST リクエストでも動く？ 既定のプライマリ接続試行の待ち時間は？</a><a class="h2" href="#s18">未確認</a></nav><main><h1>Week4-16: CloudFront と Global Accelerator（エッジ配信・オリジン保護・フェイルオーバー）</h1>
+<body><nav><a href="../../../index.html"><b>← 一覧</b></a><a class="h2" href="#s0">選定の早見表</a><a class="h2" href="#s1">CloudFront と Global Accelerator の違い</a><a class="h2" href="#s2">CloudFront: S3 オリジンの保護（OAC）</a><a class="h2" href="#s3">CloudFront: ALB / EC2 オリジンの保護</a><a class="h2" href="#s4">CloudFront: 署名付き URL と署名付き Cookie</a><a class="h2" href="#s5">CloudFront: オリジンフェイルオーバー（詳細）</a><a class="h2" href="#s6">CloudFront: Origin Shield</a><a class="h2" href="#s7">CloudFront: キャッシュ期間（TTL）</a><a class="h2" href="#s8">CloudFront: オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシー</a><a class="h2" href="#s9">CloudFront: Continuous deployment（ステージングディストリビューション）</a><a class="h2" href="#s10">CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）</a><a class="h2" href="#s11">CloudFront: その他（HTTPS・暗号化・地理的制限）</a><a class="h2" href="#s12">CloudFront: アクセスログ（標準ログとリアルタイムログ）</a><a class="h2" href="#s13">Global Accelerator</a><a class="h2" href="#s14">判断ポイント</a><a class="h2" href="#s15">Q&amp;amp;A（答えを隠して考えてから確認）</a><a class="h3" href="#s16">Q1. S3 バケットを CloudFront 経由のみで公開したい。SSE-KMS も使っている。どうする？</a><a class="h3" href="#s17">Q2. S3 を静的ウェブサイトエンドポイントとして設定している。OAC で保護できる？</a><a class="h3" href="#s18">Q3. プライベートサブネットの ALB を、CloudFront 経由でのみ公開したい。どうする？</a><a class="h3" href="#s19">Q4. 有料会員が HLS 動画（多数のファイル）を視聴する。URL は変えたくない。どうする？</a><a class="h3" href="#s20">Q5. 顧客のファイアウォールに静的 IP を許可してもらう必要がある HTTP アプリを、複数リージョンで高速にフェイルオーバーさせたい。どうする？</a><a class="h3" href="#s21">Q6. CloudFront のオリジンフェイルオーバーは、POST リクエストでも動く？ 既定のプライマリ接続試行の待ち時間は？</a><a class="h2" href="#s22">未確認</a></nav><main><h1>Week4-16: CloudFront と Global Accelerator（エッジ配信・オリジン保護・フェイルオーバー）</h1>
 <p>出典（2026-09-26 に aws-mcp の search_documentation / read_documentation で原文を確認）: CloudFront Developer Guide「Restrict access to an Amazon S3 origin」「Restrict access with VPC origins」「Decide to use signed URLs or signed cookies」「Specify signers that can create signed URLs and signed cookies」「Optimize high availability with CloudFront origin failover」「Differences between CloudFront Functions and Lambda@Edge」「Use field-level encryption」「Restrict the geographic distribution of your content」、Global Accelerator Developer Guide「What is AWS Global Accelerator?」「How AWS Global Accelerator works」「Endpoints for standard accelerators」「How endpoint weights work」「Custom routing accelerators」「Preserve client IP addresses」、Global Accelerator FAQs、re:Post「CloudFront に ACM 証明書を関連付ける」、ACM FAQs</p>
 <h2 id="s0">選定の早見表</h2>
 <div class="tbl"><table>
@@ -132,7 +132,41 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>オリジングループと併用可</strong>（プライマリのオリジンはプライマリの Origin Shield 経由、フェイルオーバー時はセカンダリのオリジンはセカンダリの Origin Shield 経由）。<strong>Lambda@Edge のオリジンリクエスト / レスポンスのトリガーは Origin Shield を有効にしたリージョンで実行される</strong>（ビューワー側は影響なし）</li>
 <li>gRPC リクエストは Origin Shield を通らない（直接オリジンへ）</li>
 </ul>
-<h2 id="s7">CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）</h2>
+<h2 id="s7">CloudFront: キャッシュ期間（TTL）</h2>
+<ul>
+<li>キャッシュ期間の管理は<strong>キャッシュポリシー</strong>の更新を推奨。キャッシュポリシーは、キャッシュキーに含めるヘッダー / Cookie / クエリ文字列、TTL、圧縮オブジェクトのキャッシュを指定する。ポリシーを使わない旧設定では、<strong>既定 TTL は 24 時間</strong>。Minimum TTL / Maximum TTL / Default TTL をキャッシュビヘイビア単位で設定できる</li>
+<li>個別ファイルは、オリジンが <strong><code>Cache-Control: max-age</code> / <code>s-maxage</code></strong> か <strong><code>Expires</code></strong> を付けて制御する。max-age の下限は 0 秒、上限は 100 年。<strong>max-age と Expires の両方があれば max-age のみ使う</strong>（max-age の利用を推奨）</li>
+<li><strong>視聴者リクエストの <code>Cache-Control</code> / <code>Pragma</code> ヘッダーで、オリジンへの再取得を強制することはできない</strong>（CloudFront は無視する）</li>
+<li>ヘッダーと TTL の関係（Minimum TTL = 0 のとき）: max-age があれば <strong>max-age と Maximum TTL の小さいほう</strong>。s-maxage もあれば <strong>s-maxage と Maximum TTL の小さいほう</strong>（ブラウザは max-age に従う）。Expires のみなら Expires の日時と Maximum TTL の早いほう。ヘッダーなしなら <strong>Default TTL</strong></li>
+<li>Minimum TTL &gt; 0 のとき: ヘッダーの値が Minimum〜Maximum の範囲内ならヘッダーの値。<strong>Minimum より小さければ Minimum TTL、Maximum より大きければ Maximum TTL</strong>。ヘッダーなしなら Minimum と Default の大きいほう</li>
+<li><strong><code>Cache-Control: no-cache</code> / <code>no-store</code> / <code>private</code> があっても、Minimum TTL &gt; 0 なら Minimum TTL でキャッシュされる</strong>（Minimum TTL = 0 ならヘッダーを尊重）。この場合、オリジンに到達できないときは以前取得したオブジェクトを返す。避けるには <code>stale-if-error=0</code> を付ける</li>
+<li><strong><code>stale-while-revalidate</code></strong>: 期限切れ後も、裏で再検証しながら古いコンテンツを返す（レイテンシー改善）。<strong><code>stale-if-error</code></strong>: オリジンに到達できない・5xx のとき古いコンテンツを返す。どちらも<strong>指定値と Maximum TTL の小さいほう</strong>まで。Maximum TTL を過ぎた古いオブジェクトは、指定値にかかわらずエッジキャッシュから返されない</li>
+<li>期限切れ後は、オリジンに再検証し、最新なら <strong>304 Not Modified</strong>、古ければ 200 と最新ファイル。<strong>アクセスが少ないファイルは期限前でも追い出される</strong>ことがある</li>
+<li>gRPC はキャッシュできないため、キャッシュ設定の影響を受けない</li>
+</ul>
+<h2 id="s8">CloudFront: オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシー</h2>
+<ul>
+<li><strong>オリジンリクエストポリシー</strong>: キャッシュミス時のオリジンリクエストに含める情報（ヘッダー / Cookie / クエリ文字列）を指定する。<strong>キャッシュポリシー（キャッシュキー）とは別物</strong>なので、オリジンには渡したいがキャッシュキーには入れたくない値を渡せ、<strong>キャッシュヒット率を保てる</strong>。<strong>キャッシュキーに含めた値は自動でオリジンリクエストにも含まれる</strong>。ポリシーなしでは、URL パス・ボディ・CloudFront が常に付ける <code>Host</code> / <code>User-Agent</code> / <code>X-Amz-Cf-Id</code> 以外（クエリ文字列・ヘッダー・Cookie）はオリジンに送られない（旧設定はヘッダーを既定で転送）。ビューワーのリクエストにない <code>CloudFront-Viewer-Country</code> などの CloudFront ヘッダーを追加することもできる</li>
+<li><strong>管理オリジンリクエストポリシー</strong>（一部）: <code>AllViewer</code>（全ヘッダー・Cookie・クエリ文字列）、<code>AllViewerAndCloudFrontHeaders-2022-06</code>（AllViewer + 2022 年 6 月までの CloudFront ヘッダー）、<strong><code>AllViewerExceptHostHeader</code></strong>（Host 以外すべて。<strong>API Gateway / Lambda 関数 URL オリジン向け</strong>。これらのオリジンは Host にオリジンのドメイン名を期待するため、ビューワーの Host を転送すると動かなくなる。Host を除くと CloudFront がオリジンのドメイン名で Host を付ける）、<code>CORS-S3Origin</code>（Origin / Access-Control-Request-Headers / Access-Control-Request-Method）、<code>CORS-CustomOrigin</code>（Origin のみ）、<code>HostHeaderOnly</code>、<code>UserAgentRefererHeaders</code>、<code>Elemental-MediaTailor-PersonalizedManifests</code></li>
+<li><strong>管理キャッシュポリシー</strong>（一部）: <strong><code>CachingOptimized</code></strong>（Min 1 秒 / Default 24 時間 / Max 365 日。ヘッダー・Cookie・クエリ文字列はキャッシュキーに含めず、圧縮のため正規化した Accept-Encoding のみ。圧縮オブジェクトのキャッシュ有効）、<code>CachingOptimizedForUncompressedObjects</code>（同じで圧縮キャッシュ無効）、<strong><code>CachingDisabled</code></strong>（TTL がすべて 0、キャッシュキーなし。動的コンテンツ・キャッシュ不可のリクエスト向け）、<code>UseOriginCacheControlHeaders</code> / <code>UseOriginCacheControlHeaders-QueryStrings</code>（オリジンの Cache-Control に従う。Min TTL 0。後者はクエリ文字列でコンテンツが変わるオリジン向け）、<code>Amplify</code>、<code>Elemental-MediaPackage</code>。<strong><code>CachingOptimized</code> などは Min TTL が 0 より大きいので、<code>no-cache</code> / <code>no-store</code> / <code>private</code> があってもキャッシュされる</strong>（原文の警告）</li>
+<li><strong>レスポンスヘッダーポリシー</strong>: CloudFront がビューワーへの応答で<strong>追加または削除する HTTP ヘッダー</strong>を指定する。設定の種類は CORS ヘッダー / セキュリティヘッダー / カスタムヘッダー / ヘッダー削除 / Server-Timing ヘッダー。CORS の Access-Control-Allow-Origin では先頭サブドメインだけにワイルドカードを使える（<code>*.example.org</code>）。Access-Control-Allow-Headers の <code>*</code> は Authorization を含まない（明示が必要）。セキュリティヘッダーは Content-Security-Policy（値は 1783 文字まで）/ Referrer-Policy / Strict-Transport-Security / X-Content-Type-Options / X-Frame-Options（DENY か SAMEORIGIN）/ X-XSS-Protection。<strong>カスタムヘッダー</strong>は全レスポンスに追加され、値は省略可（値なしのヘッダーも追加できる）。ヘッダーごとの Origin override が true ならオリジンの同名ヘッダーを無視してポリシーの値、false ならオリジンの値を優先（オリジンにないときはポリシーの値を追加）。<strong>ヘッダー削除</strong>はオリジンからの応答のヘッダーを、キャッシュヒットかオリジン経由かを問わず全レスポンスから除く（例: X-Powered-By、Vary）。削除が先で追加が後なので、同じヘッダーを他の設定で追加していれば付く。Server / Date を削除しても CloudFront が自前の値（Server は <code>CloudFront</code>）を付ける。Connection / Content-Length / Via / Transfer-Encoding / X-Amz-Cf-* / X-Edge-* など多数は削除不可（指定するとエラー）。<strong>Server-Timing</strong> はサンプリングレート 0〜100（小数点以下 4 桁まで）でヘッダーを付ける応答の割合を指定し、リクエストに <code>Pragma: server-timing</code> があればレートが 0 でも付く。オリジンが Server-Timing を返していれば、キャッシュミス時は CloudFront のメトリクスが追記された 1 本のヘッダーになり、キャッシュヒット時は CloudFront のメトリクスのみ（2026-09-26 に原文で確認。個別メトリクスの一覧は未確認）</li>
+<li><strong>Origin override</strong>: 各 CORS / セキュリティヘッダーの設定。true ならオリジン応答に同じヘッダーがあってもポリシーの値で置き換え（オリジンの値を無視）、false ならオリジン応答のヘッダーを優先し、オリジン応答になければポリシーの値を追加する</li>
+<li><strong>管理レスポンスヘッダーポリシー</strong>: <code>SimpleCORS</code>（Access-Control-Allow-Origin: *）、<code>CORS-With-Preflight</code>（プリフライトで Allow-Methods / Allow-Origin / Expose-Headers を追加）、<code>SecurityHeadersPolicy</code>（Referrer-Policy / Strict-Transport-Security max-age=31536000 / X-Content-Type-Options nosniff / X-Frame-Options SAMEORIGIN / X-XSS-Protection）、および CORS とセキュリティヘッダーを合わせた <code>CORS-and-SecurityHeadersPolicy</code>、<code>CORS-with-preflight-and-SecurityHeadersPolicy</code>。**管理ポリシーでは X-Content-Type-Options だけ Override origin が「はい」**で、それ以外はオリジンの値を優先する</li>
+</ul>
+<h2 id="s9">CloudFront: Continuous deployment（ステージングディストリビューション）</h2>
+<p>（2026-09-26 に原文で確認。CloudFront Developer Guide「Use CloudFront continuous deployment…」配下の各ページ）</p>
+<ul>
+<li><strong>目的</strong>: 本番トラフィックの一部を新しい設定に流して検証し、問題なければ<strong>プライマリに昇格</strong>する（模擬トラフィックでのテストが不要）。</li>
+<li><strong>流れ</strong>: プライマリ（現在本番を配信中）から<strong>ステージングディストリビューション</strong>を作成（最初はプライマリのコピー）→ <strong>continuous deployment policy（トラフィック設定）</strong> をプライマリにアタッチ → ステージングの設定を更新 → 監視 → <strong>昇格</strong>（ステージングの設定をプライマリにコピーし、ポリシーは無効化されて全トラフィックがプライマリへ）。昇格後は同じステージングを再利用できる。</li>
+<li><strong>ビューワーはステージングに直接アクセスできない</strong>（DNS 名 / IP / CNAME 不可）。ビューワーはプライマリに送り、CloudFront がポリシーに従って一部をステージングへ振り分ける。</li>
+<li><strong>トラフィック設定の 2 種類</strong>: <strong>重みベース</strong>（指定割合をステージングへ。<strong>最大 15%</strong>、CLI では 0.01〜0.15。<strong>セッションスティッキネス</strong>を有効にすると Cookie で同一セッションを同じ側に固定し、アイドル時間は 300〜3600 秒）と、<strong>ヘッダーベース</strong>（指定ヘッダーと値を含むリクエストだけステージングへ。ローカルテスト向け。ヘッダー名は <strong><code>aws-cf-cd-</code> プレフィックス</strong>必須）。ポリシーやスティッキネスの有効 / 無効を切り替えると、全セッションがリセットされる。</li>
+<li><strong>変更できる設定</strong>: キャッシュビヘイビア（デフォルト含む）、オリジン / オリジングループ、カスタムエラーレスポンス、地理的制限、デフォルトルートオブジェクト、ログ設定、コメント。参照先の外部リソース（キャッシュポリシー、レスポンスヘッダーポリシー、CloudFront Functions、Lambda@Edge）も更新できる。</li>
+<li><strong>キャッシュは共有されない</strong>: ステージングの最初のリクエスト時はキャッシュが空。</li>
+<li><strong>クォータ</strong>: ステージングディストリビューション 20 / アカウント、continuous deployment policy 20 / アカウント。</li>
+<li><strong>制約</strong>: <strong>HTTP/3 を有効にしたディストリビューションでは使えない</strong>。プライマリが S3 に OAC を使っているなら、<strong>バケットポリシーにステージングディストリビューションも許可</strong>する。AWS WAF は、その ACL を初めて関連付ける / 関連付けを解除する操作ができない（先に continuous deployment policy を削除する。ステージングも一緒に削除される）。ピーク時などは、ポリシーの指定にかかわらず<strong>全リクエストがプライマリへ</strong>送られることがある。</li>
+<li>試験の判断: 「本番の CloudFront 設定変更を、一部の実トラフィックで安全に検証してから切り替えたい」→ <strong>continuous deployment（ステージング + 重み / ヘッダーベース）</strong>。</li>
+</ul>
+<h2 id="s10">CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）</h2>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -192,13 +226,25 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>Lambda@Edge の用途: 数ミリ秒以上かかる処理、CPU / メモリの調整、サードパーティライブラリ（AWS SDK を含む）、外部サービスへのネットワークアクセス、ファイルシステムやリクエストボディへのアクセス</li>
 <li>Lambda@Edge は<strong>単一のリージョンに発行</strong>し（<strong>us-east-1（バージニア北部）</strong>。CloudFront Developer Guide）、ディストリビューションに関連付けると<strong>世界中に自動でレプリケート</strong>される</li>
 </ul>
-<h2 id="s8">CloudFront: その他（HTTPS・暗号化・地理的制限）</h2>
+<h2 id="s11">CloudFront: その他（HTTPS・暗号化・地理的制限）</h2>
 <ul>
 <li><strong>ACM 証明書を CloudFront で使うには、us-east-1（バージニア北部）で作成またはインポートする</strong>。ACM の証明書を別リージョンから関連付けることはできない（リージョン間コピーもできない）</li>
+<li><strong>CloudFront〜オリジン間の HTTPS（カスタムオリジン）</strong>（2026-09-26 に原文で確認）: <strong>Origin Protocol Policy</strong> は <strong>HTTPS Only</strong>（HTTPS のみ）か <strong>Match Viewer</strong>（ビューワーのプロトコルに合わせる。Viewer Protocol Policy が Redirect HTTP to HTTPS か HTTPS Only のときだけ選ぶ）。オリジンの証明書は、ELB なら <strong>ACM 発行または ACM にインポートしたサードパーティ CA 発行</strong>でよい。ELB 以外のオリジンは<strong>信頼できるサードパーティ CA 発行が必須</strong>（Mozilla の CA リスト準拠）。<strong>自己署名証明書は不可</strong>。証明書のドメイン名は、オリジンのドメイン名か、Host ヘッダーを転送する場合はその Host の値と一致させる。期限切れ・不正・自己署名・チェーン順序誤り・中間証明書欠落だと CloudFront は接続を切り、ビューワーに <strong>502</strong> を返す（<code>X-Cache: Error from cloudfront</code>）。<strong>S3 ウェブサイトエンドポイントは HTTPS 非対応</strong>なので、オリジンへ HTTPS にできない。通常の S3 バケットオリジンは既定が Match Viewer で、HTTPS を強制するなら Viewer Protocol Policy を Redirect HTTP to HTTPS / HTTPS Only にする（OAC 有効時は OAC の設定による）</li>
+<li><strong>ALB へのアクセスを CloudFront 経由に限定（シークレットヘッダー方式）</strong>（同）: 公開 ALB では、①CloudFront の <strong>Origin Custom Headers</strong> でカスタムヘッダーを付与、②ALB リスナーに「そのヘッダーを含むなら転送」ルールを追加し、<strong>デフォルトルールは固定レスポンス 403</strong> にする。<strong>ヘッダー名・値は秘密にする</strong>（本番ではランダム値、認証情報として扱う。漏れると直接アクセスが CloudFront 経由に見えてしまう）。<strong>HTTPS Only にして盗聴を防ぎ、ヘッダーを定期的にローテーション</strong>（新ヘッダーを追加 → ALB ルール更新 → 旧ヘッダーを停止 → 旧ルール削除の順）。HTTPS Only 時は <strong>Host ヘッダーをオリジンリクエストポリシーで転送</strong>（AllViewer など）し、ALB に HTTPS リスナーと一致する証明書が必要。<strong>ACM 証明書はビューワー〜CloudFront 用が us-east-1、ALB 用は ALB のあるリージョン</strong>に別々に必要。より安全なのは <strong>VPC オリジン</strong>（プライベートサブネットの ALB）で、併用として上記のマネージドプレフィックスリストも使える</li>
+<li><strong>オリジンカスタムヘッダーの仕様</strong>（同）: カスタムオリジンと S3 オリジンで使え、オリジンごとに設定できる。ビューワーリクエストに同名ヘッダーがあれば<strong>上書き</strong>する。<strong>追加できないヘッダー</strong>: Cache-Control / Connection / Content-Length / Cookie / Host / If-* / Range / Pragma / Transfer-Encoding / Via など、<strong><code>X-Amz-</code> 始まり、<code>X-Edge-</code> 始まり、X-Real-Ip</strong>。Authorization ヘッダーは既定でオリジンに転送されない（キャッシュキーに含める、オリジンリクエストポリシーで転送、または AllViewer で転送。キャッシュキーに含めずに転送すると、認可済みと未認可のビューワーに同じキャッシュを返しうる）</li>
+<li><strong>独自ドメインの HTTPS 配信: SNI と専用 IP</strong>（2026-09-26 に原文で確認）: 選択肢は <strong>SNI（推奨）</strong> と<strong>エッジロケーションごとの専用 IP</strong>。SNI は 2010 年以降にリリースされたブラウザ / クライアントが対応する TLS 拡張で、CloudFront は ClientHello の SNI のドメイン名からディストリビューションを特定して証明書を返す（IP はディストリビューション専用ではない。ドメインを即座に特定できないと接続を切る）。<strong>SNI 非対応の古いクライアントも配信対象にするなら専用 IP</strong>（全クライアントで動作）で、<strong>追加の月額料金</strong>が証明書の関連付け + ディストリビューション有効化の時点から発生する。専用 IP は<strong>静的 IP ではなく変わりうる</strong>（CloudFront エッジサーバーの範囲から動的に割り当て。変更通知は AWS Public IP Address Changes を SNS 購読）。<strong>専用 IP 証明書の既定の上限は 2</strong>（3 以上はサポートケースで申請）。1 ディストリビューションに関連付けられる証明書は 1 つ。SNI を使いたいが非対応ブラウザがある場合の代替: 専用 IP / CloudFront 既定証明書（<code>*.cloudfront.net</code> のドメイン名で配信。TLSv1 以降必須、SSLv3 不可）/ ブラウザのアップグレード / HTTP。単価は未確認</li>
 <li><strong>フィールドレベル暗号化</strong>: POST リクエストの<strong>特定フィールド（最大 10 個）<strong>を、エッジで</strong>公開鍵（RSA）<strong>により暗号化。<strong>リクエスト全体は暗号化できない</strong>（フィールド単位）。オリジンから先のアプリ全体で暗号化されたままで、<strong>秘密鍵を持つコンポーネントだけが復号</strong>できる（例: 決済処理）。<strong>オリジンはチャンクエンコーディングに対応が必要</strong>。HTTPS によるビューワー〜オリジン間の暗号化に</strong>追加</strong>する層</li>
 <li><strong>地理的制限</strong>: CloudFront の機能は<strong>国単位で、ディストリビューション全体のファイルに適用</strong>（ビヘイビアやパスごとには設定できない）。<strong>許可リストは指定外の国をすべてブロック、拒否リストは指定外の国をすべて許可</strong>。CloudFront の地理的制限は <strong>AWS WAF や エッジ関数より先に評価される</strong>（AWS ブログ）。<strong>一部のファイルだけ、または国より細かい粒度で制限したい場合はサードパーティの位置情報サービス</strong>を使う</li>
 </ul>
-<h2 id="s9">Global Accelerator</h2>
+<h2 id="s12">CloudFront: アクセスログ（標準ログとリアルタイムログ）</h2>
+<ul>
+<li><strong>リアルタイムログ</strong>（2026-09-26 に原文で確認）: リクエストから<strong>数秒以内</strong>に配信。設定できるのは<strong>サンプリングレート（1〜100 の整数 %）</strong>、<strong>フィールド（1 レコード最大 40 個。CMCD フィールドを含む）</strong>、<strong>対象のキャッシュビヘイビア（パスパターン）</strong>。配信先は <strong>Kinesis Data Streams のみ</strong>（<code>StreamType</code> の有効値は Kinesis）。S3 / Redshift / OpenSearch / サードパーティへは、自作コンシューマーか <strong>Amazon Data Firehose</strong> 経由。<strong>CloudFront のリアルタイムログ料金に加えて Kinesis Data Streams の料金</strong>がかかる。<strong>ベストエフォート</strong>で、遅れたり、まれに欠落したりする（課金・使用状況レポートの件数と一致しない）。コンシューマーはフィールドが<strong>常に固定の順序</strong>で届く前提で作る（後からフィールドを追加すると位置がずれる）。シャード数は秒間リクエスト数と 1 レコードの大きさ（通常約 500 バイト、全フィールドで約 1 KB）から見積もる。Kinesis 側でスロットリングされたらシャードを増やす。CloudFront は設定内の <strong>IAM ロール</strong>で書き込む</li>
+<li><strong>標準ログ（v2）</strong>: 配信先は <strong>CloudWatch Logs / Amazon Data Firehose / S3</strong>（CloudWatch vended logs を使う）。フィールドを選べ（リアルタイムログのフィールドの一部も選べる）、出力形式は <strong>JSON / Plain / w3c / Raw / Parquet（S3 のみ）</strong>。形式は<strong>作成時のみ指定でき、後から更新できない</strong>（変えるなら配信を作り直す）。S3 では<strong>オプトインリージョンへの配信、パーティション、Hive 互換パス</strong>が使える。<strong>クロスアカウント配信に対応</strong>。CloudWatch API で有効化するときは <strong>us-east-1</strong> を指定する（配信先が別リージョンでも）。<strong>有効化自体は無料</strong>で、配信先の料金がかかる（S3 への配信に追加料金はなく S3 の保管・アクセス料金のみ。Parquet 変換は CloudWatch の料金）。Cookie ログは全配信先共通の設定</li>
+<li><strong>標準ログ（レガシー）</strong>: S3 のみ。<strong>バケットは ACL 有効が必須</strong>で、<strong>Object Ownership が「バケット所有者の強制」だと配信できない</strong>。<strong>オプトインリージョンのバケットは非対応</strong>（v2 なら対応）。v2 を有効にしてもレガシーには影響せず併用できる（併用時は別バケットか別パスにする）</li>
+<li><strong>使い分け</strong>: 数秒単位の監視・分析・対応が必要ならリアルタイムログ（Kinesis）。事後分析・監査で安く済ませるなら標準ログ（S3 + Athena）。リアルタイムログの <code>cs-uri-stem</code> はクエリ文字列を含むが、標準ログの <code>cs-uri-stem</code> は含まない（原文の注記）</li>
+<li>標準ログの配信遅延時間・レガシー標準ログの詳細な仕様、リアルタイムログのシャード数の計算式の細部は未確認</li>
+</ul>
+<h2 id="s13">Global Accelerator</h2>
 <ul>
 <li>標準アクセラレーターは、AWS グローバルネットワーク経由で、<strong>クライアントに最も近いリージョンのエンドポイント</strong>に流す。<strong>カスタムルーティングアクセラレーター</strong>は、1 人以上のユーザーを<strong>多数の宛先のうち特定のもの</strong>に割り当てる</li>
 <li><strong>静的 IP</strong>: <strong>IPv4 で 2 つ</strong>、デュアルスタックでは <strong>IPv4 2 + IPv6 2 の計 4 つ</strong>。<strong>エッジネットワークからの anycast</strong>。<strong>自分の IP 範囲を持ち込む（BYOIP）</strong> こともできる。アクセラレーターが存在する限り IP は変わらない（無効にしても保持される。<strong>削除すると失う</strong>）</li>
@@ -209,7 +255,7 @@ hr{border:0;border-top:1px solid var(--line)}
 <li><strong>クライアント IP の保存</strong>: 標準アクセラレーターで保存できるのは <strong>ALB、EC2 インスタンス、セキュリティグループ付きの NLB</strong>。<strong>セキュリティグループなしの NLB と Elastic IP は保存不可</strong>。カスタムルーティングでは<strong>常に保存</strong>される</li>
 <li><strong>カスタムルーティングアクセラレーター</strong>: <strong>VPC サブネット内の EC2 インスタンスのポート</strong>にのみ流す。<strong>地理的近接性やエンドポイントの健全性でルーティングせず、ヘルスチェックもフェイルオーバーもない</strong>（宛先は自分が指定）。IPv4 のみ。用途: <strong>ゲームのセッションなど、特定のユーザーを特定のサーバーに固定して割り当てる</strong></li>
 </ul>
-<h2 id="s10">判断ポイント</h2>
+<h2 id="s14">判断ポイント</h2>
 <ul>
 <li>「ALB の前段で、静的 IP を顧客のファイアウォールに許可してもらう」→ <strong>Global Accelerator</strong>（FAQ が静的 IP の要件を Global Accelerator の適した用途に挙げている。<strong>ただし「CloudFront に静的 IP はない」は誤り</strong>: CloudFront FAQ に <strong>Anycast Static IPs</strong> がある。許可リスト用途は IPv4 21 個（デュアルスタックは IPv4 21 + IPv6 21）、apex ドメイン用途は 3 個。同一アカウントの複数ディストリビューションで共有でき、<strong>料金クラス All が必須・SNI 非対応の旧クライアントは不可・IPv6 は無効化が必要</strong>（FAQ の例外）。BYOIP は /24 を 3 つ。HTTP で静的 IP 要件かつ CloudFront を使いたい場合はこれも選択肢だが、非 HTTP や決定的なリージョンフェイルオーバーは引き続き Global Accelerator）</li>
 <li>「DNS キャッシュに影響されず、リージョン障害時にすばやく切り替え」→ <strong>Global Accelerator</strong>（DNS キャッシュの影響を避けられる点は Week2 ノート 08 を参照）</li>
@@ -228,40 +274,40 @@ hr{border:0;border-top:1px solid var(--line)}
 <li>「CloudFront で独自ドメインの HTTPS。証明書は ACM」→ <strong>us-east-1 で発行</strong></li>
 <li>「CloudFront のオリジンフェイルオーバーで POST は？」→ <strong>フェイルオーバーしない</strong>（GET / HEAD / OPTIONS のみ）</li>
 </ul>
-<h2 id="s11">Q&amp;A（答えを隠して考えてから確認）</h2>
-<h3 id="s12">Q1. S3 バケットを CloudFront 経由のみで公開したい。SSE-KMS も使っている。どうする？</h3>
+<h2 id="s15">Q&amp;A（答えを隠して考えてから確認）</h2>
+<h3 id="s16">Q1. S3 バケットを CloudFront 経由のみで公開したい。SSE-KMS も使っている。どうする？</h3>
 <details><summary>答え</summary>
 OAC（origin access control）を使う。OAC は SSE-KMS や PUT / DELETE などの動的リクエストに対応し、OAI は非推奨。前提として S3 Object Ownership は「Bucket owner enforced」（新規バケットのデフォルト）にする。
 </details>
 
-<h3 id="s13">Q2. S3 を静的ウェブサイトエンドポイントとして設定している。OAC で保護できる？</h3>
+<h3 id="s17">Q2. S3 を静的ウェブサイトエンドポイントとして設定している。OAC で保護できる？</h3>
 <details><summary>答え</summary>
 できない。静的ウェブサイトエンドポイントは CloudFront のカスタムオリジン扱いになり、OAC（OAI も）は使えない。
 </details>
 
-<h3 id="s14">Q3. プライベートサブネットの ALB を、CloudFront 経由でのみ公開したい。どうする？</h3>
+<h3 id="s18">Q3. プライベートサブネットの ALB を、CloudFront 経由でのみ公開したい。どうする？</h3>
 <details><summary>答え</summary>
 VPC オリジンを使う。CloudFront が唯一の入口になり、オリジンをパブリックにしなくてよい。パブリックなオリジンなら、マネージドプレフィックスリスト com.amazonaws.global.cloudfront.origin-facing をセキュリティグループのインバウンドで参照して絞る。
 </details>
 
-<h3 id="s15">Q4. 有料会員が HLS 動画（多数のファイル）を視聴する。URL は変えたくない。どうする？</h3>
+<h3 id="s19">Q4. 有料会員が HLS 動画（多数のファイル）を視聴する。URL は変えたくない。どうする？</h3>
 <details><summary>答え</summary>
 署名付き Cookie。複数の制限ファイルへのアクセスを許可でき、URL を変えずに済む。単一ファイルのダウンロードを期限付きで共有するなら署名付き URL。署名者は信頼されたキーグループが推奨。
 </details>
 
-<h3 id="s16">Q5. 顧客のファイアウォールに静的 IP を許可してもらう必要がある HTTP アプリを、複数リージョンで高速にフェイルオーバーさせたい。どうする？</h3>
+<h3 id="s20">Q5. 顧客のファイアウォールに静的 IP を許可してもらう必要がある HTTP アプリを、複数リージョンで高速にフェイルオーバーさせたい。どうする？</h3>
 <details><summary>答え</summary>
 Global Accelerator。IPv4 の静的 IP が 2 つ（デュアルスタックは計 4 つ）で、anycast。異常なエンドポイントから新規接続を即座に別の正常なエンドポイントへ向ける。DNS キャッシュの影響も受けない。
 </details>
 
-<h3 id="s17">Q6. CloudFront のオリジンフェイルオーバーは、POST リクエストでも動く？ 既定のプライマリ接続試行の待ち時間は？</h3>
+<h3 id="s21">Q6. CloudFront のオリジンフェイルオーバーは、POST リクエストでも動く？ 既定のプライマリ接続試行の待ち時間は？</h3>
 <details><summary>答え</summary>
 動かない。GET / HEAD / OPTIONS のときだけフェイルオーバーする。既定ではプライマリへの接続を最大 30 秒（10 秒 × 3 回）試してからセカンダリへ切り替える。接続タイムアウトは 1〜10 秒、試行回数は 1〜3 回に変更できる。
 </details>
 
-<h2 id="s18">未確認</h2>
+<h2 id="s22">未確認</h2>
 <ul>
-<li><strong>CloudFront</strong>: キャッシュポリシー / オリジンリクエストポリシー / レスポンスヘッダーポリシー、TTL とキャッシュ無効化（Invalidation）の課金、料金クラス（Price Class）、<strong>Origin Shield の単価</strong>（原文は「CloudFront pricing 参照」のみ。仕組み・リージョン・課金対象は 2026-09-26 に原文で確認済み）、<strong>オリジンへの HTTPS 要件とカスタムヘッダー（ALB のシークレットヘッダー方式）</strong>、<strong>AWS WAF との統合</strong>（WAF 自体を Week4 で別ノートにする予定）、<strong>Lambda@Edge のレプリケーション元リージョン（us-east-1）と併用時の制約</strong>、オリジンフェイルオーバーと Lambda@Edge の併用の詳細、<strong>リアルタイムログ / 標準ログ</strong>、<strong>mTLS / Connection Functions</strong>、<strong>SNI と専用 IP 独自 SSL</strong>、<strong>Continuous deployment（ステージングディストリビューション）</strong>、<strong>S3 のバケットポリシー（OAC 用）の書き方</strong></li>
+<li><strong>CloudFront</strong>: （オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシーの主要な内容は 2026-09-26 に原文で確認済み。「CloudFront: オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシー」節。カスタム / 削除ヘッダー・Server-Timing の仕様は 2026-09-26 に原文で確認済み（Server-Timing の個別メトリクス一覧は未確認）。管理キャッシュポリシー Amplify の細目は未確認。ポリシー作成上限は下記のとおり確認済み）、キャッシュキーの詳細（TTL とキャッシュポリシーの役割は 2026-09-26 に原文で確認済み。「CloudFront: キャッシュ期間（TTL）」節）、（キャッシュ無効化の課金は 2026-09-26 に原文で確認済み: 月あたり最初の 1,000 パスは無料で、超過分はパス単位で課金。ワイルドカード <code>/*</code> を含むパスも 1 パス扱い。無料枠はアカウント内の全ディストリビューション合計で、リクエストにまとめても各パスが個別にカウントされる。タグ無効化のアイテムも同じ無料枠を共有して 1 パス扱い。頻繁に更新するなら無効化よりバージョン付きファイル名が推奨（無効化の課金がなく、視聴者側のキャッシュにも影響されない）。単価は未確認）、<strong>料金クラスごとのリージョン対応表と単価</strong>（料金クラスの仕組み自体は 2026-09-26 に原文で確認済み: 既定は全エッジロケーション。PriceClass_100 / 200 / All があり、除外ロケーションの視聴者は遅延が増えうる。対象外ロケーションから配信された場合は、料金クラス内で最安のロケーションの料金が課金される。Anycast Static IPs は PriceClass_All 必須。対応表は原文が CloudFront pricing ページ参照のみ）、<strong>Origin Shield の単価</strong>（原文は「CloudFront pricing 参照」のみ。仕組み・リージョン・課金対象は 2026-09-26 に原文で確認済み）、（オリジンへの HTTPS 要件とカスタムヘッダー（ALB のシークレットヘッダー方式）は 2026-09-26 に原文で確認済み。「CloudFront: その他」節。カスタムヘッダーのクォータは 2026-09-26 に原文（CloudFront Quotas「Quotas on headers」）で確認済み: オリジンリクエストに追加できるカスタムヘッダーは 30 個（引き上げ申請可）、ヘッダー名は 256 文字、値は 1,783 文字、名前と値の合計 10,240 文字。レスポンスヘッダーポリシーのカスタムヘッダーは 10 個、カスタムポリシーはアカウントあたり 20 個、同一ポリシーを関連付けられるディストリビューションは 100。キャッシュビヘイビアで転送するヘッダーは 25 個（旧設定のヘッダー指定は 10 個）。これでレスポンスヘッダーポリシーの作成上限も確認済み）、<strong>AWS WAF との統合</strong>（WAF 自体を Week4 で別ノートにする予定）、<strong>Lambda@Edge のレプリケーション元リージョン（us-east-1）と併用時の制約</strong>、オリジンフェイルオーバーと Lambda@Edge の併用の詳細、（リアルタイムログ / 標準ログの仕組み・配信先・料金の考え方は 2026-09-26 に原文で確認済み。「CloudFront: アクセスログ」節。標準ログの配信遅延時間は未確認）、<strong>mTLS / Connection Functions</strong>、（SNI と専用 IP 独自 SSL の仕組み・専用 IP の上限・追加料金の有無は 2026-09-26 に原文で確認済み。「CloudFront: その他」節。専用 IP の単価は未確認）、（Continuous deployment の仕組み・トラフィック設定・クォータ・制約は 2026-09-26 に原文で確認済み。「CloudFront: Continuous deployment」節。監視（Monitor a staging distribution）の詳細は未確認）、<strong>S3 のバケットポリシー（OAC 用）の書き方</strong></li>
 <li><strong>Global Accelerator</strong>: <strong>料金（固定 + データ転送プレミアム）</strong>、<strong>ヘルスチェックの間隔・しきい値・フェイルオーバー時間の数値</strong>、<strong>接続の衝突（connection collisions）の詳細</strong>、<strong>BYOIP の要件</strong>、<strong>Global Accelerator と CloudFront の併用</strong>、<strong>フローログ</strong>、<strong>IPv6 の対応範囲</strong></li>
 <li><strong>Route 53 との使い分け</strong>: レイテンシールーティング + ヘルスチェックによる構成との比較（Week1 / Week2 のノートに一部あり）</li>
 </ul>
