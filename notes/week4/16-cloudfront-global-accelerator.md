@@ -52,6 +52,27 @@
 - **Lambda@Edge と併用できる**（詳細は原文の該当節。ここでは未確認）
 - Route 53 のフェイルオーバー（ヘルスチェックに基づく DNS 切り替え）とは仕組みが違う。組み合わせた構成は AWS ブログにある
 
+## CloudFront: Origin Shield
+- エッジロケーション・リージョナルエッジキャッシュの**さらに後ろ（オリジンの手前）に置く追加のキャッシュ層**。全キャッシュ層からオリジンへのリクエストが Origin Shield を通り、同じオブジェクトへのオリジンリクエストを最小 1 つにまとめる。**キャッシュヒット率の向上、オリジン負荷の軽減**が目的（原文）
+- **オリジン単位の設定**（ディストリビューション単位ではない）。オリジンごとに別のリージョンを選べる。**追加料金あり**（Origin Shield を通るリクエスト数に対する課金）
+- リージョンは**オリジンへのレイテンシーが最小のリージョン**を選ぶ。オリジンが Origin Shield 提供リージョン（13 リージョン: us-east-1/2、us-west-2、ap-south-1、ap-northeast-1/2、ap-southeast-1/2、eu-central-1、eu-west-1/2、sa-east-1、me-central-1）にあるなら**同じリージョン**。ない場合は原文の対応表（例: us-west-1 → us-west-2）に従う。AWS 外（オンプレ）のオリジンにも使える
+- 向くケース: 視聴者が地理的に分散、ライブ配信の just-in-time パッケージング / 画像のオンザフライ処理、帯域に制約のあるオンプレオリジン、マルチ CDN。**動的コンテンツ（プロキシ）、キャッシュされにくいコンテンツ、めったにリクエストされないコンテンツには向かない**
+- 課金: PUT / POST / PATCH / DELETE、および **TTL 3,600 秒未満または無効の GET / HEAD は「動的」扱いで常に課金対象**。Origin Shield と同じリージョンのリージョナルエッジキャッシュ経由のリクエストは Origin Shield をスキップし課金されない
+- 高可用性: リージョナルエッジキャッシュは 3 AZ 以上で構成。Origin Shield が使えないときは**セカンダリの Origin Shield へ自動でルーティング**
+- **オリジングループと併用可**（プライマリのオリジンはプライマリの Origin Shield 経由、フェイルオーバー時はセカンダリのオリジンはセカンダリの Origin Shield 経由）。**Lambda@Edge のオリジンリクエスト / レスポンスのトリガーは Origin Shield を有効にしたリージョンで実行される**（ビューワー側は影響なし）
+- gRPC リクエストは Origin Shield を通らない（直接オリジンへ）
+
+## CloudFront: キャッシュ期間（TTL）
+- キャッシュ期間の管理は**キャッシュポリシー**の更新を推奨。キャッシュポリシーは、キャッシュキーに含めるヘッダー / Cookie / クエリ文字列、TTL、圧縮オブジェクトのキャッシュを指定する。ポリシーを使わない旧設定では、**既定 TTL は 24 時間**。Minimum TTL / Maximum TTL / Default TTL をキャッシュビヘイビア単位で設定できる
+- 個別ファイルは、オリジンが **`Cache-Control: max-age` / `s-maxage`** か **`Expires`** を付けて制御する。max-age の下限は 0 秒、上限は 100 年。**max-age と Expires の両方があれば max-age のみ使う**（max-age の利用を推奨）
+- **視聴者リクエストの `Cache-Control` / `Pragma` ヘッダーで、オリジンへの再取得を強制することはできない**（CloudFront は無視する）
+- ヘッダーと TTL の関係（Minimum TTL = 0 のとき）: max-age があれば **max-age と Maximum TTL の小さいほう**。s-maxage もあれば **s-maxage と Maximum TTL の小さいほう**（ブラウザは max-age に従う）。Expires のみなら Expires の日時と Maximum TTL の早いほう。ヘッダーなしなら **Default TTL**
+- Minimum TTL > 0 のとき: ヘッダーの値が Minimum〜Maximum の範囲内ならヘッダーの値。**Minimum より小さければ Minimum TTL、Maximum より大きければ Maximum TTL**。ヘッダーなしなら Minimum と Default の大きいほう
+- **`Cache-Control: no-cache` / `no-store` / `private` があっても、Minimum TTL > 0 なら Minimum TTL でキャッシュされる**（Minimum TTL = 0 ならヘッダーを尊重）。この場合、オリジンに到達できないときは以前取得したオブジェクトを返す。避けるには `stale-if-error=0` を付ける
+- **`stale-while-revalidate`**: 期限切れ後も、裏で再検証しながら古いコンテンツを返す（レイテンシー改善）。**`stale-if-error`**: オリジンに到達できない・5xx のとき古いコンテンツを返す。どちらも**指定値と Maximum TTL の小さいほう**まで。Maximum TTL を過ぎた古いオブジェクトは、指定値にかかわらずエッジキャッシュから返されない
+- 期限切れ後は、オリジンに再検証し、最新なら **304 Not Modified**、古ければ 200 と最新ファイル。**アクセスが少ないファイルは期限前でも追い出される**ことがある
+- gRPC はキャッシュできないため、キャッシュ設定の影響を受けない
+
 ## CloudFront: エッジ関数（CloudFront Functions と Lambda@Edge）
 | | CloudFront Functions | Lambda@Edge |
 |---|---|---|
@@ -85,7 +106,7 @@
 - **カスタムルーティングアクセラレーター**: **VPC サブネット内の EC2 インスタンスのポート**にのみ流す。**地理的近接性やエンドポイントの健全性でルーティングせず、ヘルスチェックもフェイルオーバーもない**（宛先は自分が指定）。IPv4 のみ。用途: **ゲームのセッションなど、特定のユーザーを特定のサーバーに固定して割り当てる**
 
 ## 判断ポイント
-- 「ALB の前段で、静的 IP を顧客のファイアウォールに許可してもらう」→ **Global Accelerator**（FAQ が静的 IP の要件を Global Accelerator の適した用途に挙げている。CloudFront に静的 IP がないことの原文確認は未確認）
+- 「ALB の前段で、静的 IP を顧客のファイアウォールに許可してもらう」→ **Global Accelerator**（FAQ が静的 IP の要件を Global Accelerator の適した用途に挙げている。**ただし「CloudFront に静的 IP はない」は誤り**: CloudFront FAQ に **Anycast Static IPs** がある。許可リスト用途は IPv4 21 個（デュアルスタックは IPv4 21 + IPv6 21）、apex ドメイン用途は 3 個。同一アカウントの複数ディストリビューションで共有でき、**料金クラス All が必須・SNI 非対応の旧クライアントは不可・IPv6 は無効化が必要**（FAQ の例外）。BYOIP は /24 を 3 つ。HTTP で静的 IP 要件かつ CloudFront を使いたい場合はこれも選択肢だが、非 HTTP や決定的なリージョンフェイルオーバーは引き続き Global Accelerator）
 - 「DNS キャッシュに影響されず、リージョン障害時にすばやく切り替え」→ **Global Accelerator**（DNS キャッシュの影響を避けられる点は Week2 ノート 08 を参照）
 - 「グローバルなゲームの UDP トラフィック」→ **Global Accelerator**
 - 「特定のプレイヤーを特定のゲームサーバー（EC2）に割り当てる」→ **カスタムルーティングアクセラレーター**
@@ -134,7 +155,7 @@ Global Accelerator。IPv4 の静的 IP が 2 つ（デュアルスタックは�
 </details>
 
 ## 未確認
-- **CloudFront**: キャッシュポリシー / オリジンリクエストポリシー / レスポンスヘッダーポリシー、TTL とキャッシュ無効化（Invalidation）の課金、料金クラス（Price Class）、**Origin Shield**、**オリジンへの HTTPS 要件とカスタムヘッダー（ALB のシークレットヘッダー方式）**、**AWS WAF との統合**（WAF 自体を Week4 で別ノートにする予定）、**Lambda@Edge のレプリケーション元リージョン（us-east-1）と併用時の制約**、オリジンフェイルオーバーと Lambda@Edge の併用の詳細、**リアルタイムログ / 標準ログ**、**mTLS / Connection Functions**、**SNI と専用 IP 独自 SSL**、**Continuous deployment（ステージングディストリビューション）**、**S3 のバケットポリシー（OAC 用）の書き方**
+- **CloudFront**: オリジンリクエストポリシー / レスポンスヘッダーポリシー、キャッシュポリシーの管理ポリシー一覧とキャッシュキーの詳細（TTL とキャッシュポリシーの役割は 2026-09-26 に原文で確認済み。「CloudFront: キャッシュ期間（TTL）」節）、（キャッシュ無効化の課金は 2026-09-26 に原文で確認済み: 月あたり最初の 1,000 パスは無料で、超過分はパス単位で課金。ワイルドカード `/*` を含むパスも 1 パス扱い。無料枠はアカウント内の全ディストリビューション合計で、リクエストにまとめても各パスが個別にカウントされる。タグ無効化のアイテムも同じ無料枠を共有して 1 パス扱い。頻繁に更新するなら無効化よりバージョン付きファイル名が推奨（無効化の課金がなく、視聴者側のキャッシュにも影響されない）。単価は未確認）、**料金クラスごとのリージョン対応表と単価**（料金クラスの仕組み自体は 2026-09-26 に原文で確認済み: 既定は全エッジロケーション。PriceClass_100 / 200 / All があり、除外ロケーションの視聴者は遅延が増えうる。対象外ロケーションから配信された場合は、料金クラス内で最安のロケーションの料金が課金される。Anycast Static IPs は PriceClass_All 必須。対応表は原文が CloudFront pricing ページ参照のみ）、**Origin Shield の単価**（原文は「CloudFront pricing 参照」のみ。仕組み・リージョン・課金対象は 2026-09-26 に原文で確認済み）、**オリジンへの HTTPS 要件とカスタムヘッダー（ALB のシークレットヘッダー方式）**、**AWS WAF との統合**（WAF 自体を Week4 で別ノートにする予定）、**Lambda@Edge のレプリケーション元リージョン（us-east-1）と併用時の制約**、オリジンフェイルオーバーと Lambda@Edge の併用の詳細、**リアルタイムログ / 標準ログ**、**mTLS / Connection Functions**、**SNI と専用 IP 独自 SSL**、**Continuous deployment（ステージングディストリビューション）**、**S3 のバケットポリシー（OAC 用）の書き方**
 - **Global Accelerator**: **料金（固定 + データ転送プレミアム）**、**ヘルスチェックの間隔・しきい値・フェイルオーバー時間の数値**、**接続の衝突（connection collisions）の詳細**、**BYOIP の要件**、**Global Accelerator と CloudFront の併用**、**フローログ**、**IPv6 の対応範囲**
 - **Route 53 との使い分け**: レイテンシールーティング + ヘルスチェックによる構成との比較（Week1 / Week2 のノートに一部あり）
 

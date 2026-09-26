@@ -332,3 +332,114 @@ WebFetch の要約は誤ることがある（VPN の大容量トンネルを2.5G
 | 17: KMS 権限 | ➕ プロデューサーは kms:Decrypt + kms:GenerateDataKey、コンシューマーは kms:Decrypt。S3 / EventBridge / SNS からは、カスタマー管理キーのキーポリシーでサービスプリンシパルを許可 |
 | 17: データキー再利用期間 | ✅ 60 秒〜24 時間、既定 5 分。KMS 呼び出し数 R = (B/D) × (2P + C)。エンベロープ暗号化 |
 | 17: SSE-SQS の既定有効化・料金、キューポリシーによるクロスアカウント、拡張クライアント、SNS / EventBridge の上限比較 | 未確認（今回の原文では確認せず） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第10弾: SQS のクロスアカウント）
+根拠: 公式ドキュメント原文（Python で取得）— SQS Developer Guide「Overview of managing access」（sqs-overview-of-managing-access.html）、「Basic examples of Amazon SQS policies」（sqs-basic-examples-of-sqs-policies.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: キューポリシーによるクロスアカウント | ✅ キューのアクセスポリシーでクロスアカウントのプリンシパルを許可する必要があり、IAM のアイデンティティベースポリシーだけでは不十分（原文）。Principal に複数アカウント ID を指定可 |
+| 17: クロスアカウントが使えないアクション | ➕ AddPermission、CancelMessageMoveTask、CreateQueue、DeleteQueue、ListMessageMoveTask、ListQueues、ListQueueTags、RemovePermission、SetQueueAttributes、StartMessageMoveTask、TagQueue、UntagQueue（キュー所有アカウントのユーザーのみ） |
+| 17: SSE-SQS の既定有効化・料金、拡張クライアント、SNS / EventBridge の上限比較 | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第11弾: SSE-SQS の既定有効化）
+根拠: 公式ドキュメント原文（Python で取得）— SQS Developer Guide「Configuring SSE-SQS for a queue (console)」（sqs-configure-sse-existing-queue.html）、「Encryption at rest」（sqs-server-side-encryption.html）、「Key management」（sqs-key-management.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: SSE の既定有効化 | ✅ 原文「SQS has server-side encryption (SSE) enabled by default for all newly created queues」。新規作成キューが対象（既存キューの扱いは原文に記載なし） |
+| 17: KMS の追加料金 | ✅ 「There are additional charges for using AWS KMS」（Important 注記）。データキー再利用期間が短いと Free Tier を超える課金の可能性 |
+| 17: SSE-SQS 自体の料金 | 未確認（上記 3 ページに記載なし。SQS 料金ページは今回取得せず） |
+| 17: 拡張クライアント、SNS / EventBridge の上限比較 | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第12弾: SQS の SSE の料金）
+根拠: 公式 FAQ 原文（Python で取得）— aws.amazon.com/sqs/faqs/「Are there any charges for using SSE with Amazon SQS?」。SSE 関連の Developer Guide 3 ページと SQS 料金ページの本文も検索
+
+| 項目 | 結果 |
+|---|---|
+| 17: SSE の SQS 側の料金 | ✅ FAQ 原文「There are no additional Amazon SQS charges. However, there are charges for calls from Amazon SQS to AWS KMS」。KMS の料金はデータキー再利用期間に依存 |
+| 17: SSE-SQS 単体の料金の明記 | 未確認（FAQ は SSE-SQS / SSE-KMS を区別せず「SSE」と表記。Developer Guide と料金ページの本文にも SSE-SQS の料金記述なし） |
+| 17: 拡張クライアント、SNS / EventBridge の上限比較 | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第13弾: SQS Extended Client Library）
+根拠: 公式ドキュメント原文（curl）— SQS Developer Guide「Managing large Amazon SQS messages with Extended Client Library and Amazon S3」（sqs-managing-large-messages.html）、「Managing large Amazon SQS messages using Java and Amazon S3」（sqs-s3-messages.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: 拡張クライアントの対象サイズ・仕組み | ✅ 256 KB〜2 GB。本文を S3 に保存し、参照を SQS に送る。標準・FIFO の両方に対応 |
+| 17: 対応言語 | ⚠️ 親ページは Java 版と Python 版を挙げるが、Java 版ページは「Java SDK でのみ可能（CLI・コンソール・HTTP API・他 SDK は不可）」と記載しており食い違い。ノートの「Java」のみの書き方は不十分（Python 版もある） |
+| 17: 送信のしきい値 | ➕ 「常に S3」か「256 KB 超のときのみ S3」を選択可 |
+| 17: 256 KB の記述と現行上限 1 MiB の関係 | 未確認（Java ページに「標準の最大 256 KB」とあり古い記述の可能性。原文から断定できず） |
+| 17: SNS / EventBridge の上限比較 | 第14弾で裏取り（下記） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第14弾: SNS / EventBridge の上限比較）
+根拠: 公式ドキュメント原文（Python で取得）— General Reference「Amazon SNS endpoints and quotas」（gr/sns.html）、「Amazon EventBridge endpoints and quotas」（gr/ev.html）、EventBridge User Guide「Sending events with PutEvents」（eb-putevents.html）
+
+| 項目 | 結果 |
+|---|---|
+| 17: SNS のメッセージサイズ | ✅ 最大 262,144 バイト（256 KiB）。超える場合は SNS Extended Client Libraries（ペイロード最大 2 GB） |
+| 17: SNS の購読・トピック数 | ➕ 標準: 購読 12,500,000/トピック・トピック 100,000/アカウント。FIFO: 購読 100/トピック・トピック 1,000/アカウント。PublishBatch は最大 10 メッセージ |
+| 17: SNS FIFO のスループット | ➕ メッセージグループあたり 300 メッセージ/秒。FifoThroughputScope=Topic でトピックあたり既定 3,000 メッセージ/秒または 20 MB/秒。Publish 上限は us-east-1 で 30,000 メッセージ/秒（リージョン別） |
+| 17: EventBridge の PutEvents サイズ | ➕ 最大 10 エントリ、リクエスト合計 1 MB（1,048,576 バイト）未満。エントリ単位ではなくリクエスト全体の上限 |
+| 17: EventBridge のターゲット・ルール数 | ➕ ルールあたりターゲット 5（引き上げ不可）、バスあたりルール既定 300（一部 100）、イベントパターン 2,048 文字、イベントバス 100/リージョン |
+| 17: AWS サービス由来イベントのサイズ上限、SNS FIFO の全リージョン別スループット | 未確認（今回の原文では確認せず） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第15弾: CloudFront に静的 IP があるか）
+根拠: 公式 FAQ 原文（Python で取得）— aws.amazon.com/cloudfront/faqs/（Anycast Static IPs 節）、aws.amazon.com/global-accelerator/faqs/。Developer Guide の LocationsOfEdgeServers / cloudfront-overview ページには該当記述なし
+
+| 項目 | 結果 |
+|---|---|
+| 16: 「CloudFront に静的 IP がない」 | ⚠️ 誤り。CloudFront に Anycast Static IPs がある。ノート 16 の判断ポイントを訂正 |
+| 16: 個数 | ➕ 許可リスト用途: IPv4 21 個（デュアルスタックは IPv4 21 + IPv6 21）。apex ドメイン用途: 3 個（デュアルスタックは 3 + 3） |
+| 16: 制約 | ➕ 例外は 3 点: SNI 非対応の旧クライアント不可、料金クラス All 必須、IPv6 は無効化が必要（同じ FAQ の別項目にはデュアルスタックで IPv6 対応とあり、記述が食い違い） |
+| 16: その他 | ➕ 同一アカウントの複数ディストリビューションで共有可、新規ディストリビューションは明示的に関連付けるまで動的 IP。BYOIP は /24 の IPv4 を 3 つ（VPC IPAM 経由）。エッジ追加後もリストは有効 |
+| 16: Anycast Static IPs の料金、Developer Guide 側の記述 | 未確認（FAQ のみ確認） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第16弾: CloudFront Origin Shield）
+根拠: 公式ドキュメント原文（curl）— CloudFront Developer Guide「Use Amazon CloudFront Origin Shield」（origin-shield.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: Origin Shield の役割 | ✅ エッジ / リージョナルエッジキャッシュの後ろの追加キャッシュ層。ヒット率向上・オリジン負荷軽減。オリジン単位の設定。追加料金あり |
+| 16: リージョン選択 | ➕ オリジンに最もレイテンシーが低いリージョン。提供は 13 リージョン（us-east-1/2、us-west-2、ap-south-1、ap-northeast-1/2、ap-southeast-1/2、eu-central-1、eu-west-1/2、sa-east-1、me-central-1）。提供外リージョンのオリジンは対応表で代替（例: us-west-1→us-west-2）。同一リージョンからのリクエストは Origin Shield をバイパス |
+| 16: 課金対象 | ➕ PUT/POST/PATCH/DELETE と TTL 3,600 秒未満・キャッシュ無効の GET/HEAD は動的扱いで常に課金。同一リージョンのリージョナルエッジ経由は非課金 |
+| 16: オリジングループ・Lambda@Edge との関係 | ✅ オリジングループと互換（オリジンごとの Origin Shield を経由）。Lambda@Edge のオリジン側トリガーは Origin Shield 有効リージョンで実行、ビューワー側は影響なし。セカンダリ Origin Shield へ移ると実行リージョンも移る |
+| 16: その他 | ➕ gRPC は Origin Shield 非対応（直接プロキシ）。ログでは OriginShieldHit と表示（Origin Shield 役のリージョナルエッジキャッシュに届いた場合は Hit） |
+| 16: Origin Shield の単価 | 未確認（原文は CloudFront pricing ページ参照のみで、単価の記載なし） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第17弾: CloudFront 料金クラス）
+根拠: 公式原文（curl）— aws.amazon.com/cloudfront/faqs/（Price Classes 節）、CloudFront API Reference「DistributionConfig」、Developer Guide「Distribution settings」（DownloadDistValuesGeneral.html）。Developer Guide の PriceClass.html は料金ページに転送され、原文取得できず
+
+| 項目 | 結果 |
+|---|---|
+| 16: 料金クラスの目的・既定 | ✅ 高コストのエッジロケーションを除外して配信料金を下げる。既定は全エッジロケーション（PriceClass_All 相当） |
+| 16: 値の種類 | ➕ API の有効値は PriceClass_100 / PriceClass_200 / PriceClass_All（/ None） |
+| 16: 性能への影響 | ➕ 除外地域の視聴者は遅延が増えうる。料金クラス外のロケーションから配信されることもあり、その場合は料金クラス内で最安のロケーションの料金のみ課金 |
+| 16: Anycast Static IPs との関係 | ✅ PriceClass_All 必須（第15弾と同じ FAQ 原文） |
+| 16: 各料金クラスに含まれるリージョン、単価 | 未確認（原文は CloudFront pricing ページ参照のみ、今回は取得した範囲に対応表なし） |
+
+
+## 2026-09-26（08〜20 の個別の未確認項目 第18弾: CloudFront Invalidation の課金）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Pay for file invalidation」（PayingForInvalidation.html）、「Invalidate files to remove content」（Invalidation.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: 無料枠 | ✅ 月あたり最初の 1,000 パスは無料、超過分は 1 パスごとに課金。無料枠はアカウント内の全ディストリビューション合計（例: 3 ディストリビューションで各 600 パス＝計 1,800 なら 800 パス分を課金） |
+| 16: ワイルドカード | ✅ `*` を含むパス（`/images/*`、`/*`）は何千ファイルを無効化しても 1 パス。1 リクエストに複数パスをまとめても各パスが個別にカウント |
+| 16: タグ無効化 | ➕ キャッシュタグによる無効化のアイテムも同じ無料枠を共有し、1 アイテム＝1 パス（例: パス 500 + タグ 600 = 1,100 → 100 パス分を課金） |
+| 16: バージョン付きファイル名との比較 | ➕ 頻繁な更新にはバージョン管理を推奨。理由: 無効化の課金がない、視聴者ローカル / 社内プロキシのキャッシュに左右されない、ログ分析・ロールバックが容易。エッジへの転送料は無効化でもバージョン管理でも発生 |
+| 16: 無効化 1 パスの単価 | 未確認（原文は CloudFront pricing ページ参照のみ） |
+| 16: キャッシュポリシー / オリジンリクエストポリシー / TTL | 未確認（今回対象外） |
+
+## 2026-09-26（08〜20 の個別の未確認項目 第19弾: CloudFront のキャッシュ期間 / TTL）
+根拠: 公式ドキュメント原文（Python で取得）— CloudFront Developer Guide「Manage how long content stays in the cache (expiration)」（Expiration.html）、「Control the cache key with a policy」（controlling-the-cache-key.html）
+
+| 項目 | 結果 |
+|---|---|
+| 16: キャッシュポリシーの役割 | ✅ ヘッダー / Cookie / クエリ文字列のキャッシュキー指定に加え、TTL 設定と圧縮オブジェクトのキャッシュ有効化も指定できる。TTL 管理はキャッシュポリシー推奨。旧設定（ポリシーなし）の既定 TTL は 24 時間 |
+| 16: max-age / Expires | ➕ max-age は 0 秒〜100 年。両方あれば max-age のみ使う。視聴者リクエストの Cache-Control / Pragma は無視（再取得の強制は不可） |
+| 16: TTL 計算 | ➕ Min TTL=0: max-age（s-maxage があればそちら）と Max TTL の小さいほう、ヘッダーなしは Default TTL。Min TTL>0: Min〜Max にクランプ、ヘッダーなしは Min と Default の大きいほう |
+| 16: no-cache / no-store / private | ⚠️ Min TTL>0 なら、これらのヘッダーがあっても Min TTL でキャッシュされる（ヘッダーが常に優先されるわけではない）。オリジン到達不可時は古いオブジェクトを返す。stale-if-error=0 で回避 |
+| 16: stale-while-revalidate / stale-if-error | ➕ どちらも指定値と Max TTL の小さいほうまで古いコンテンツを提供。Max TTL 経過後は不可 |
+| 16: オリジンリクエストポリシー / レスポンスヘッダーポリシー / 管理ポリシー一覧 | 未確認（今回対象外） |
+
