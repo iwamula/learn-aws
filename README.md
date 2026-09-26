@@ -1,7 +1,6 @@
 # learn-aws
 
 AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ。
-試験日: **2026-10-24** / 学習開始: 2026-09-25（SAA取得済み）
 
 ## 出題ドメイン
 | ドメイン | 配点 |
@@ -21,7 +20,7 @@ AWS Certified Solutions Architect - Professional (SAP-C02) 学習リポジトリ
 | - | 10/24 | 試験日 | 前日は軽い復習のみ |
 
 ## 進め方（Q&A運用）
-1. `notes/weekN/` の要点ノートを読む（HTMLで読むなら `npm i && npm run build:html` → `docs/index.html` を開く。`docs/` は生成物で gitignore 済み）
+1. `notes/weekN/` の要点ノートを読む（HTMLで読むなら `npm i && npm run build:html` → `docs/index.html` を開く。`docs/` は生成物だがコミット対象。スマホで見る設定は `other/cloudflare-pages-setup.md`）
 2. 気になった仕様や、自分の理解が合っているか不安な点を、トピック別ファイル（`qa/iam.md` など）に `Qn 質問（自分の理解も書く）` として追記する
 3. AIに「事実確認して」と依頼し、質問の直下に、根拠つきの回答・訂正を普通の段落で書き込んでもらう
 4. 間違っていた理解は `qa/mistakes.md` に記録し、週末に見直す
